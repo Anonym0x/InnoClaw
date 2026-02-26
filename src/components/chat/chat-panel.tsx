@@ -73,11 +73,25 @@ function processChildren(children: React.ReactNode): React.ReactNode {
   }
   if (Array.isArray(children)) {
     return children.map((child, i) => {
-      if (typeof child === "string" && /\[Source\s+\d+/.test(child)) {
-        return <CitationText key={i} text={child} />;
+      const processed = processChildren(child);
+      if (processed !== child && typeof processed === "object") {
+        return <span key={i}>{processed}</span>;
       }
-      return child;
+      return processed;
     });
+  }
+  // Recursively walk React elements (e.g., <em>, <strong>, <a>)
+  if (
+    typeof children === "object" &&
+    children !== null &&
+    "props" in children &&
+    (children as React.ReactElement).props?.children
+  ) {
+    const element = children as React.ReactElement;
+    const processedChildren = processChildren(element.props.children);
+    if (processedChildren !== element.props.children) {
+      return { ...element, props: { ...element.props, children: processedChildren } };
+    }
   }
   return children;
 }
