@@ -55,7 +55,7 @@ export interface Note {
   workspaceId: string;
   title: string;
   content: string;
-  type: "manual" | "summary" | "faq" | "briefing" | "timeline" | "memory" | "daily_report" | "weekly_report";
+  type: "manual" | "summary" | "faq" | "briefing" | "timeline" | "memory" | "daily_report" | "weekly_report" | "paper_discussion";
   createdAt: string;
   updatedAt: string;
 }

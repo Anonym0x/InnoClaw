@@ -390,7 +390,8 @@
     "generatingWeeklyReport": "Generating...",
     "weeklyReportSuccess": "Weekly report generated",
     "weeklyReportSkipped": "No memory notes for this week",
-    "weeklyReportExists": "Weekly report already exists"
+    "weeklyReportExists": "Weekly report already exists",
+    "paper_discussion": "Paper Discussion"
   },
   "skills": {
     "title": "Skills",
