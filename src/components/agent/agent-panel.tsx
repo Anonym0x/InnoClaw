@@ -916,20 +916,20 @@ export function AgentPanel({
       p.type?.startsWith("tool-") || p.type === "dynamic-tool"
     );
 
-    // Decide whether to auto-continue:
-    // 1. Message has tool calls → agent was actively working, likely hit maxSteps
-    // 2. Already mid-task (autoContinueCount > 0) and got pure text → model
-    //    may output progress text without tools mid-task (common with Kimi)
-    // Only skip auto-continue for the very first response that is pure text
-    // (i.e., a simple Q&A answer with no tool usage at all).
-    const midTask = autoContinueCountRef.current > 0;
-    if (hasToolCall || midTask) {
-      autoContinueCountRef.current++;
-      autoContinueTimerRef.current = setTimeout(() => {
-        sendMessage({ text: t("autoContinue") });
-      }, 500);
+    // Only auto-continue when the last assistant message includes a tool call.
+    // Pure-text assistant messages are treated as completed unless they
+    // themselves request further tools.
+    if (!hasToolCall) {
+      // Reset the auto-continue counter when we see a pure-text response,
+      // so we don't keep auto-continuing based on stale state.
+      autoContinueCountRef.current = 0;
+      return;
     }
 
+    autoContinueCountRef.current++;
+    autoContinueTimerRef.current = setTimeout(() => {
+      sendMessage({ text: t("autoContinue") });
+    }, 500);
     return () => {
       if (autoContinueTimerRef.current) {
         clearTimeout(autoContinueTimerRef.current);
