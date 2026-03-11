@@ -83,13 +83,14 @@ function getPerModelProvider(
     );
   }
 
-  let cached = perModelProviderCache.get(modelId);
+  const cacheKey = `${providerId}:${modelId}`;
+  let cached = perModelProviderCache.get(cacheKey);
   if (!cached) {
     cached = createOpenAI({
       apiKey: process.env[`${prefix}_API_KEY`] || "",
       baseURL,
     });
-    perModelProviderCache.set(modelId, cached);
+    perModelProviderCache.set(cacheKey, cached);
   }
   return cached.chat(modelId);
 }
