@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { providerId, model } = await getConfiguredModelWithProvider();
+    const useTools = providerSupportsTools(providerId);
     let systemPrompt: string;
     let tools;
 
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
         // Skills table might not exist yet; proceed without catalog
       }
 
-      systemPrompt = buildAgentSystemPrompt(cwd, skillCatalog);
+      systemPrompt = buildAgentSystemPrompt(cwd, skillCatalog, { noTools: !useTools });
       tools = createAgentTools(cwd, undefined, workspaceId);
     }
 
@@ -113,7 +114,7 @@ export async function POST(req: NextRequest) {
 
     const modelMessages = await convertToModelMessages(sanitizedMessages);
 
-    const DEFAULT_MAX_STEPS = 10;
+    const DEFAULT_MAX_STEPS = 50;
     const MAX_STEPS_UPPER_BOUND = 100;
     const parsedSteps = parseInt(process.env.AGENT_MAX_STEPS || "", 10);
     const maxSteps = Number.isFinite(parsedSteps) && parsedSteps > 0
@@ -121,7 +122,6 @@ export async function POST(req: NextRequest) {
       : DEFAULT_MAX_STEPS;
 
     // Skip tools for providers that don't support tool calling (e.g. vLLM without --enable-auto-tool-choice)
-    const useTools = providerSupportsTools(providerId);
 
     const result = streamText({
       model,
