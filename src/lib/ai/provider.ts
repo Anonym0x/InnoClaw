@@ -9,13 +9,10 @@ import type { LanguageModel } from "ai";
 
 /**
  * Check if any AI API key is configured.
+ * Derived from PROVIDERS so new providers are automatically included.
  */
 export function isAIAvailable(): boolean {
-  return (
-    !!process.env.OPENAI_API_KEY ||
-    !!process.env.ANTHROPIC_API_KEY ||
-    !!process.env.GEMINI_API_KEY
-  );
+  return Object.values(PROVIDERS).some((p) => !!process.env[p.envKey]);
 }
 
 /**
@@ -50,6 +47,10 @@ const gemini = createOpenAI({
   baseURL: process.env.GEMINI_BASE_URL,
 });
 
+// Cache SH-Lab providers by modelId to avoid re-creating them on every request.
+// Each SH-Lab model uses a distinct base URL, so we key the cache by modelId.
+const shlabProviderCache = new Map<string, ReturnType<typeof createOpenAI>>();
+
 /**
  * Get the currently configured LLM model based on settings
  */
@@ -81,7 +82,7 @@ export async function getConfiguredModel(): Promise<LanguageModel> {
       return anthropic(modelId);
     case "shlab": {
       // Each SH-Lab model is served from its own endpoint configured via an
-      // environment variable derived from the model ID.
+      // environment variable derived from the model ID; use a cached per-model provider.
       // e.g. intern-s1-pro → SHLAB_INTERN_S1_PRO_BASE_URL
       const shlabModel = PROVIDERS.shlab.models.find((m) => m.id === modelId);
       if (!shlabModel) {
@@ -101,10 +102,14 @@ export async function getConfiguredModel(): Promise<LanguageModel> {
             `Set the ${envVarName} environment variable.`
         );
       }
-      const shlabProvider = createOpenAI({
-        apiKey: process.env.SHLAB_API_KEY || "",
-        baseURL,
-      });
+      let shlabProvider = shlabProviderCache.get(modelId);
+      if (!shlabProvider) {
+        shlabProvider = createOpenAI({
+          apiKey: process.env.SHLAB_API_KEY || "",
+          baseURL,
+        });
+        shlabProviderCache.set(modelId, shlabProvider);
+      }
       return shlabProvider.chat(modelId);
     }
     default:
