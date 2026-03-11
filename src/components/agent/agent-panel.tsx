@@ -818,8 +818,6 @@ export function AgentPanel({
   // This ensures the latest state is persisted when navigating away.
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
-  const statusRef = useRef(status);
-  statusRef.current = status;
   useEffect(() => {
     return () => {
       // On unmount, persist the current messages regardless of streaming state.
