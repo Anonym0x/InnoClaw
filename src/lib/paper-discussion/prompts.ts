@@ -1,23 +1,55 @@
-import type { DiscussionPhaseId } from "./types";
+import type { DiscussionStageId, DiscussionRoleId, DiscussionTurn, PaperDiscussionSharedContext, DiscussionAgentConfig } from "./types";
+import { DISCUSSION_AGENTS, SHARED_DISCUSSION_INSTRUCTION } from "./roles";
 
-interface ArticleContext {
-  title: string;
-  authors: string[];
-  publishedDate: string;
-  source: string;
-  abstract: string;
-}
+// =============================================================
+// STAGE GUIDANCE — what the active role should do in each stage
+// =============================================================
+const STAGE_GUIDANCE: Record<DiscussionStageId, string> = {
+  agenda: `CURRENT STAGE: Agenda
+Your task: Frame the discussion. Define the agenda. Identify key technical questions the panel should address.
+- Briefly identify the paper topic and likely evaluation dimensions: novelty, evidence quality, methodology, reproducibility, limitations.
+- Then explicitly invite the Librarian to present the evidence summary next.`,
 
+  evidence_summary: `CURRENT STAGE: Evidence Summary
+Your task: Summarize the paper's claims, method, setup, and results. Ground everything with evidence from the paper.
+- Present what the paper explicitly says vs. what is inferred vs. what is missing.
+- Attach evidence references whenever available.`,
+
+  critique: `CURRENT STAGE: Critical Analysis
+Your task: Challenge the evidence and claims. Identify weaknesses, missing baselines, threats to validity, and overclaims.
+- Mark each issue with severity: Critical / Moderate / Minor.
+- Separate confirmed weaknesses from potential concerns.`,
+
+  reproducibility_check: `CURRENT STAGE: Reproducibility Check
+Your task: Assess reproducibility. Extract implementation-critical details. Identify gaps in what's needed to reproduce the results.
+- Rate overall reproducibility status: Easily / Partially / Hard to reproduce.
+- Propose a minimal reproduction plan.`,
+
+  convergence: `CURRENT STAGE: Convergence
+Your task: Synthesize the discussion. Summarize agreement, disagreement, and open questions from Librarian, Skeptic, and Reproducer.
+- Ask for final disagreements only if needed.
+- Hand off clearly to the Scribe for final synthesis.`,
+
+  final_report: `CURRENT STAGE: Final Report
+Your task: Write the final structured report synthesizing the entire discussion.
+- Use EXACTLY the required output format with all 7 sections.
+- Do not introduce new claims that were not discussed.
+- End with "Overall take: ..."`,
+};
+
+// =============================================================
+// LOCALE INSTRUCTIONS
+// =============================================================
 const LOCALE_INSTRUCTION: Record<string, string> = {
   en: "Respond entirely in English.",
   zh: "请全部用中文回答。",
 };
 
-function localeInstruction(locale: string): string {
-  return LOCALE_INSTRUCTION[locale] || LOCALE_INSTRUCTION.en;
-}
+// =============================================================
+// HELPERS
+// =============================================================
 
-function articleBlock(article: ArticleContext): string {
+function formatArticleContext(article: PaperDiscussionSharedContext["article"]): string {
   return `## Paper Under Discussion
 - **Title**: ${article.title}
 - **Authors**: ${article.authors.join(", ")}
@@ -28,191 +60,126 @@ function articleBlock(article: ArticleContext): string {
 ${article.abstract}`;
 }
 
-function transcriptBlock(transcript: string): string {
-  if (!transcript) return "";
-  return `\n## Discussion So Far\n${transcript}`;
+function formatTranscript(transcript: DiscussionTurn[]): string {
+  if (transcript.length === 0) return "";
+
+  const lines = transcript.map((turn) => {
+    const agent = DISCUSSION_AGENTS[turn.roleId];
+    return `### [${agent.displayName} — ${turn.stageId}]\n${turn.content}`;
+  });
+
+  return `## Discussion Transcript So Far\n${lines.join("\n\n")}`;
 }
 
-function brevityNote(mode: "quick" | "full"): string {
+function formatRetrievedEvidence(evidence?: string): string {
+  if (!evidence) return "";
+  return `## Retrieved Evidence / Citations Context\n${evidence}`;
+}
+
+function brevityInstruction(mode: "quick" | "full"): string {
   if (mode === "quick") {
     return "\n\nIMPORTANT: Keep your response concise — focus on the top 2-3 most critical points only. Be brief but substantive.";
   }
   return "";
 }
 
-// --- Per-phase prompt builders ---
+// =============================================================
+// UNIFIED PROMPT BUILDER
+// =============================================================
 
-function buildModeratorOpenPrompt(
-  article: ArticleContext,
-  mode: "quick" | "full",
-  locale: string,
+/**
+ * Build the complete system prompt for a discussion agent at a given stage.
+ *
+ * Combines (in order):
+ * 1. Shared discussion instruction
+ * 2. Role-specific system prompt
+ * 3. Paper context
+ * 4. Retrieved evidence (if available)
+ * 5. Prior transcript
+ * 6. Stage-specific guidance
+ * 7. Locale instruction
+ * 8. Brevity instruction (quick mode)
+ */
+export function buildDiscussionPrompt(
+  agentConfig: DiscussionAgentConfig,
+  context: PaperDiscussionSharedContext,
+  transcript: DiscussionTurn[],
+  stageId: DiscussionStageId,
 ): string {
-  return `You are the **Moderator** of an academic paper discussion panel. Your role is to open the session, frame the key questions, and set the agenda for the discussion.
+  const parts: string[] = [
+    SHARED_DISCUSSION_INSTRUCTION,
+    "",
+    agentConfig.systemPrompt,
+    "",
+    formatArticleContext(context.article),
+  ];
 
-${articleBlock(article)}
-
-## Your Task
-1. Briefly introduce the paper (1-2 sentences about what it addresses).
-2. Identify 3-5 key questions or discussion points the panel should focus on — these should cover methodology, novelty, validity, and practical impact.
-3. Set expectations for the discussion structure.
-
-Do NOT critique the paper yourself — your job is to frame, not judge.${brevityNote(mode)}
-
-${localeInstruction(locale)}`;
-}
-
-function buildLibrarianPrompt(
-  article: ArticleContext,
-  transcript: string,
-  mode: "quick" | "full",
-  locale: string,
-): string {
-  return `You are the **Librarian** of an academic paper discussion panel. You are an expert at summarizing research and citing evidence from the text.
-
-${articleBlock(article)}
-${transcriptBlock(transcript)}
-
-## Your Task
-1. Provide a clear, structured summary of the paper's main contributions.
-2. Highlight the key claims made by the authors with specific evidence from the abstract.
-3. Identify the methodology and experimental setup.
-4. Note any references to prior work, baselines, or comparisons mentioned.
-5. Flag any context that would be important for the other panelists.
-
-Ground every statement in the paper content. Do not speculate beyond what the paper states.${brevityNote(mode)}
-
-${localeInstruction(locale)}`;
-}
-
-function buildSkepticPrompt(
-  article: ArticleContext,
-  transcript: string,
-  mode: "quick" | "full",
-  locale: string,
-): string {
-  return `You are the **Skeptic** of an academic paper discussion panel. Your role is to critically examine the paper's claims, methodology, and conclusions.
-
-${articleBlock(article)}
-${transcriptBlock(transcript)}
-
-## Your Task
-1. Challenge the paper's key claims — are they well-supported by evidence?
-2. Identify potential weaknesses in methodology (missing baselines, unfair comparisons, limited datasets, etc.).
-3. Point out unclear or ambiguous claims.
-4. Assess threats to validity (internal and external).
-5. Note any overstated conclusions or missing caveats.
-6. Identify what experiments or evidence would strengthen the paper.
-
-Be rigorous but fair — distinguish between fatal flaws and minor concerns. Reference specific aspects of the paper.${brevityNote(mode)}
-
-${localeInstruction(locale)}`;
-}
-
-function buildReproducerPrompt(
-  article: ArticleContext,
-  transcript: string,
-  mode: "quick" | "full",
-  locale: string,
-): string {
-  return `You are the **Reproducer** of an academic paper discussion panel. You focus on whether the work can be independently reproduced and implemented.
-
-${articleBlock(article)}
-${transcriptBlock(transcript)}
-
-## Your Task
-1. Assess whether enough implementation details are provided (architecture, hyperparameters, training procedures, etc.).
-2. Check if datasets and evaluation metrics are clearly specified and accessible.
-3. Identify any missing details that would prevent reproduction (random seeds, hardware specs, preprocessing steps, etc.).
-4. Note whether code or models are mentioned as publicly available.
-5. Flag any hidden assumptions or implicit dependencies.
-6. Create a brief reproducibility checklist: what would someone need to replicate this work?
-
-Be practical — focus on what's actually needed to reproduce the core results.${brevityNote(mode)}
-
-${localeInstruction(locale)}`;
-}
-
-function buildModeratorConvergePrompt(
-  article: ArticleContext,
-  transcript: string,
-  mode: "quick" | "full",
-  locale: string,
-): string {
-  return `You are the **Moderator** of an academic paper discussion panel. The panel has completed their individual analyses. Now you must synthesize and drive to convergence.
-
-${articleBlock(article)}
-${transcriptBlock(transcript)}
-
-## Your Task
-1. Summarize the key points of agreement across the panel.
-2. Highlight remaining disagreements or unresolved tensions.
-3. Identify the most important open questions.
-4. Ask whether any panelist would change their assessment based on others' input.
-5. Set up the Scribe to write the final report by noting what should be emphasized.
-
-Be balanced — represent all perspectives fairly.${brevityNote(mode)}
-
-${localeInstruction(locale)}`;
-}
-
-function buildScribeReportPrompt(
-  article: ArticleContext,
-  transcript: string,
-  mode: "quick" | "full",
-  locale: string,
-): string {
-  return `You are the **Scribe** of an academic paper discussion panel. Your task is to synthesize the entire discussion into a structured final report.
-
-${articleBlock(article)}
-${transcriptBlock(transcript)}
-
-## Your Task
-Write a structured report using EXACTLY the following sections and markdown headings:
-
-### Key Claims
-List the paper's main claims as bullet points.
-
-### Strengths
-List the paper's strengths identified by the panel.
-
-### Weaknesses
-List the paper's weaknesses and concerns raised by the panel.
-
-### Reproducibility Checklist
-A checklist (using - [ ] or - [x]) of what's needed to reproduce the work, noting what's available vs. missing.
-
-### Open Questions
-Questions the panel couldn't resolve from the available information.
-
-### Action Items
-Concrete next steps for someone working with or building on this paper (e.g., "verify claim X against dataset Y", "contact authors about code release", "compare with baseline Z").
-
-Base your report strictly on the discussion transcript. Attribute insights to the relevant roles where appropriate. Be thorough and actionable.${brevityNote(mode)}
-
-${localeInstruction(locale)}`;
-}
-
-// --- Dispatcher ---
-
-export function buildDiscussionPhasePrompt(
-  phaseId: DiscussionPhaseId,
-  article: ArticleContext,
-  transcript: string,
-  mode: "quick" | "full",
-  locale: string,
-): string {
-  switch (phaseId) {
-    case "A":
-      return buildModeratorOpenPrompt(article, mode, locale);
-    case "B":
-      return buildLibrarianPrompt(article, transcript, mode, locale);
-    case "C":
-      return buildSkepticPrompt(article, transcript, mode, locale);
-    case "D":
-      return buildReproducerPrompt(article, transcript, mode, locale);
-    case "E":
-      return buildModeratorConvergePrompt(article, transcript, mode, locale);
-    case "F":
-      return buildScribeReportPrompt(article, transcript, mode, locale);
+  const evidence = formatRetrievedEvidence(context.retrievedEvidence);
+  if (evidence) {
+    parts.push("", evidence);
   }
+
+  const transcriptBlock = formatTranscript(transcript);
+  if (transcriptBlock) {
+    parts.push("", transcriptBlock);
+  }
+
+  parts.push("", STAGE_GUIDANCE[stageId]);
+
+  const localeInstr = LOCALE_INSTRUCTION[context.locale] || LOCALE_INSTRUCTION.en;
+  parts.push("", localeInstr);
+
+  parts.push(brevityInstruction(context.mode));
+
+  return parts.join("\n");
+}
+
+// =============================================================
+// Backward compat — dispatch by stageId (used by old route.ts)
+// =============================================================
+
+/** @deprecated Use buildDiscussionPrompt directly */
+export function buildDiscussionPhasePrompt(
+  phaseId: DiscussionStageId,
+  article: { title: string; authors: string[]; publishedDate: string; source: string; abstract: string },
+  transcript: string,
+  mode: "quick" | "full",
+  locale: string,
+): string {
+  // Convert old-style args to new context
+  const context: PaperDiscussionSharedContext = {
+    article: { id: "", ...article },
+    locale,
+    mode,
+  };
+
+  // Find the stage to get the role
+  const { DISCUSSION_STAGES } = require("./roles");
+  const stage = DISCUSSION_STAGES.find((s: { id: string }) => s.id === phaseId);
+  if (!stage) throw new Error(`Unknown stage: ${phaseId}`);
+
+  const agentConfig = DISCUSSION_AGENTS[stage.roleId as DiscussionRoleId];
+
+  // Convert old transcript string to empty turns (prompt builder will use the raw string approach)
+  // For backward compat, we construct the prompt manually with the old transcript
+  const parts: string[] = [
+    SHARED_DISCUSSION_INSTRUCTION,
+    "",
+    agentConfig.systemPrompt,
+    "",
+    formatArticleContext(context.article),
+  ];
+
+  if (transcript) {
+    parts.push("", `## Discussion Transcript So Far\n${transcript}`);
+  }
+
+  parts.push("", STAGE_GUIDANCE[phaseId]);
+
+  const localeInstr = LOCALE_INSTRUCTION[locale] || LOCALE_INSTRUCTION.en;
+  parts.push("", localeInstr);
+
+  parts.push(brevityInstruction(mode));
+
+  return parts.join("\n");
 }

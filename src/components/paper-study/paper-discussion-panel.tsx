@@ -21,8 +21,8 @@ import { Badge } from "@/components/ui/badge";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import type { Article } from "@/lib/article-search/types";
-import type { DiscussionMessage, DiscussionRoleId, DiscussionPhaseId } from "@/lib/paper-discussion/types";
-import { DISCUSSION_ROLES, DISCUSSION_PHASES } from "@/lib/paper-discussion/roles";
+import type { DiscussionTurn, DiscussionRoleId, DiscussionStageId } from "@/lib/paper-discussion/types";
+import { DISCUSSION_ROLES, DISCUSSION_STAGES } from "@/lib/paper-discussion/roles";
 
 // Map icon names to components
 const ROLE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -43,8 +43,8 @@ export function PaperDiscussionPanel({ article, workspaceId }: PaperDiscussionPa
   const tPaper = useTranslations("paperStudy");
   const locale = useLocale();
 
-  const [messages, setMessages] = useState<DiscussionMessage[]>([]);
-  const [currentPhase, setCurrentPhase] = useState<DiscussionPhaseId | null>(null);
+  const [turns, setTurns] = useState<DiscussionTurn[]>([]);
+  const [currentStage, setCurrentStage] = useState<DiscussionStageId | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [mode, setMode] = useState<"quick" | "full">("quick");
   const [error, setError] = useState<string | null>(null);
@@ -52,14 +52,14 @@ export function PaperDiscussionPanel({ article, workspaceId }: PaperDiscussionPa
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const isComplete = messages.length === DISCUSSION_PHASES.length && !isRunning;
+  const isComplete = turns.length === DISCUSSION_STAGES.length && !isRunning;
 
   const startDiscussion = useCallback(async () => {
-    setMessages([]);
+    setTurns([]);
     setError(null);
     setSaved(false);
     setIsRunning(true);
-    setCurrentPhase("A");
+    setCurrentStage(DISCUSSION_STAGES[0].id);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -89,22 +89,21 @@ export function PaperDiscussionPanel({ article, workspaceId }: PaperDiscussionPa
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
-        // Keep the last incomplete line in the buffer
         buffer = lines.pop() || "";
 
         for (const line of lines) {
           const trimmed = line.trim();
           if (!trimmed) continue;
           try {
-            const msg: DiscussionMessage = JSON.parse(trimmed);
-            setMessages((prev) => [...prev, msg]);
+            const turn: DiscussionTurn = JSON.parse(trimmed);
+            setTurns((prev) => [...prev, turn]);
 
-            // Set the next expected phase
-            const phaseIndex = DISCUSSION_PHASES.findIndex((p) => p.id === msg.phaseId);
-            if (phaseIndex < DISCUSSION_PHASES.length - 1) {
-              setCurrentPhase(DISCUSSION_PHASES[phaseIndex + 1].id);
+            // Set the next expected stage
+            const stageIndex = DISCUSSION_STAGES.findIndex((s) => s.id === turn.stageId);
+            if (stageIndex < DISCUSSION_STAGES.length - 1) {
+              setCurrentStage(DISCUSSION_STAGES[stageIndex + 1].id);
             } else {
-              setCurrentPhase(null);
+              setCurrentStage(null);
             }
           } catch {
             // Skip malformed lines
@@ -125,7 +124,7 @@ export function PaperDiscussionPanel({ article, workspaceId }: PaperDiscussionPa
       }
     } finally {
       setIsRunning(false);
-      setCurrentPhase(null);
+      setCurrentStage(null);
       abortRef.current = null;
     }
   }, [article, mode, locale]);
@@ -135,13 +134,13 @@ export function PaperDiscussionPanel({ article, workspaceId }: PaperDiscussionPa
   }, []);
 
   const handleSaveToNotes = useCallback(async () => {
-    if (!workspaceId || messages.length === 0) return;
+    if (!workspaceId || turns.length === 0) return;
 
-    const transcript = messages
-      .map((m) => {
-        const role = DISCUSSION_ROLES[m.roleId];
+    const transcript = turns
+      .map((turn) => {
+        const role = DISCUSSION_ROLES[turn.roleId];
         const roleName = t(role.nameKey.split(".")[1] as Parameters<typeof t>[0]);
-        return `### ${roleName} (Phase ${m.phaseId})\n\n${m.content}`;
+        return `### ${roleName} — ${turn.stageId}\n\n${turn.content}`;
       })
       .join("\n\n---\n\n");
 
@@ -166,16 +165,16 @@ export function PaperDiscussionPanel({ article, workspaceId }: PaperDiscussionPa
     } catch {
       toast.error("Failed to save discussion to notes");
     }
-  }, [workspaceId, messages, article, t, tPaper]);
+  }, [workspaceId, turns, article, t, tPaper]);
 
   const handleExportMarkdown = useCallback(() => {
-    if (messages.length === 0) return;
+    if (turns.length === 0) return;
 
-    const transcript = messages
-      .map((m) => {
-        const role = DISCUSSION_ROLES[m.roleId];
+    const transcript = turns
+      .map((turn) => {
+        const role = DISCUSSION_ROLES[turn.roleId];
         const roleName = t(role.nameKey.split(".")[1] as Parameters<typeof t>[0]);
-        return `### ${roleName} (Phase ${m.phaseId})\n\n${m.content}`;
+        return `### ${roleName} — ${turn.stageId}\n\n${turn.content}`;
       })
       .join("\n\n---\n\n");
 
@@ -188,7 +187,7 @@ export function PaperDiscussionPanel({ article, workspaceId }: PaperDiscussionPa
     a.download = `paper-discussion-${article.id}.md`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [messages, article, mode, t]);
+  }, [turns, article, mode, t]);
 
   function getRoleIcon(roleId: DiscussionRoleId) {
     const role = DISCUSSION_ROLES[roleId];
@@ -197,7 +196,7 @@ export function PaperDiscussionPanel({ article, workspaceId }: PaperDiscussionPa
   }
 
   // Empty state
-  if (messages.length === 0 && !isRunning) {
+  if (turns.length === 0 && !isRunning) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 p-6 text-center">
         <p className="text-sm text-muted-foreground max-w-sm">
@@ -230,17 +229,16 @@ export function PaperDiscussionPanel({ article, workspaceId }: PaperDiscussionPa
   return (
     <div className="flex flex-col h-full">
       {/* Progress stepper */}
-      <div className="flex items-center gap-1 px-3 py-2 border-b border-border/50 bg-muted/20 shrink-0">
-        {DISCUSSION_PHASES.map((phase, i) => {
-          const role = DISCUSSION_ROLES[phase.roleId];
-          const isDone = messages.some((m) => m.phaseId === phase.id);
-          const isCurrent = currentPhase === phase.id;
+      <div className="flex items-center gap-1 px-3 py-2 border-b border-border/50 bg-muted/20 shrink-0 overflow-x-auto">
+        {DISCUSSION_STAGES.map((stage, i) => {
+          const isDone = turns.some((turn) => turn.stageId === stage.id);
+          const isCurrent = currentStage === stage.id;
 
           return (
-            <div key={phase.id} className="flex items-center gap-1">
-              {i > 0 && <div className="w-3 h-px bg-border" />}
+            <div key={stage.id} className="flex items-center gap-1">
+              {i > 0 && <div className="w-3 h-px bg-border shrink-0" />}
               <div
-                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs transition-colors ${
+                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs transition-colors whitespace-nowrap ${
                   isCurrent
                     ? "bg-primary/10 text-primary font-medium"
                     : isDone
@@ -248,18 +246,18 @@ export function PaperDiscussionPanel({ article, workspaceId }: PaperDiscussionPa
                       : "text-muted-foreground/50"
                 }`}
               >
-                {isCurrent && <Loader2 className="h-3 w-3 animate-spin" />}
-                {isDone && <Check className="h-3 w-3 text-green-600" />}
-                <span className="hidden sm:inline">{phase.id}</span>
-                <span className="hidden lg:inline text-[10px]">
-                  {getRoleIcon(phase.roleId)}
+                {isCurrent && <Loader2 className="h-3 w-3 animate-spin shrink-0" />}
+                {isDone && <Check className="h-3 w-3 text-green-600 shrink-0" />}
+                {getRoleIcon(stage.roleId)}
+                <span className="hidden lg:inline">
+                  {t(stage.labelKey.split(".")[1] as Parameters<typeof t>[0])}
                 </span>
               </div>
             </div>
           );
         })}
 
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-1 shrink-0">
           {isRunning && (
             <Button variant="ghost" size="sm" onClick={stopDiscussion} className="h-6 px-2 text-xs gap-1">
               <Square className="h-3 w-3" />
@@ -272,13 +270,13 @@ export function PaperDiscussionPanel({ article, workspaceId }: PaperDiscussionPa
       {/* Transcript */}
       <ScrollArea ref={scrollRef} className="flex-1">
         <div className="p-3 space-y-4">
-          {messages.map((msg, i) => {
-            const role = DISCUSSION_ROLES[msg.roleId];
-            const isReport = msg.phaseId === "F";
+          {turns.map((turn, i) => {
+            const role = DISCUSSION_ROLES[turn.roleId];
+            const isReport = turn.stageId === "final_report";
 
             return (
               <div
-                key={`${msg.phaseId}-${i}`}
+                key={`${turn.stageId}-${i}`}
                 className={`rounded-lg border p-3 ${
                   isReport
                     ? "border-primary/30 bg-primary/5"
@@ -286,28 +284,28 @@ export function PaperDiscussionPanel({ article, workspaceId }: PaperDiscussionPa
                 }`}
               >
                 <div className="flex items-center gap-2 mb-2">
-                  {getRoleIcon(msg.roleId)}
+                  {getRoleIcon(turn.roleId)}
                   <Badge variant="outline" className={`text-xs ${role.color}`}>
                     {t(role.nameKey.split(".")[1] as Parameters<typeof t>[0])}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
-                    Phase {msg.phaseId}
+                    {t(DISCUSSION_STAGES.find((s) => s.id === turn.stageId)?.labelKey.split(".")[1] as Parameters<typeof t>[0])}
                   </span>
                 </div>
                 <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  <ReactMarkdown>{turn.content}</ReactMarkdown>
                 </div>
               </div>
             );
           })}
 
-          {/* Loading indicator for current phase */}
-          {isRunning && currentPhase && (
+          {/* Loading indicator for current stage */}
+          {isRunning && currentStage && (
             <div className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-border/50 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-sm">{t("running")}</span>
               <span className="text-xs">
-                Phase {currentPhase} — {t(DISCUSSION_PHASES.find((p) => p.id === currentPhase)!.labelKey.split(".")[1] as Parameters<typeof t>[0])}
+                {t(DISCUSSION_STAGES.find((s) => s.id === currentStage)!.labelKey.split(".")[1] as Parameters<typeof t>[0])}
               </span>
             </div>
           )}

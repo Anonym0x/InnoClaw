@@ -21,6 +21,7 @@ A self-hostable AI research assistant inspired by Google NotebookLM. Turn server
 - 🛠️ **Skills 系统** — 通过导入 Skills 快速配置飞书机器人、SCP 科学技能等高级功能
 - 🗂️ **多 Agent 会话** — 标签式多会话管理，支持重命名、独立上下文
 - 📚 **论文研读** — 跨 arXiv / HuggingFace / Semantic Scholar 搜索，AI 智能扩展查询，一键摘要
+- 🎓 **论文讨论模式** — 5 角色多智能体结构化讨论（主持人/文献专家/质疑者/复现者/记录员），6 阶段确定性流程
 
 **适用人群：** 研究人员 · 开发者 · 自托管爱好者 · 学生和教育工作者
 
@@ -280,6 +281,8 @@ Agent 面板支持向 Kubernetes 集群提交 GPU 计算任务。
 - **Skills 系统** — 导入/导出/自定义技能，通过 `/skills` 页面管理
 - **多 Agent 会话** — 标签式多会话管理，独立上下文，支持重命名和两步确认关闭
 - **论文研读** — 跨 arXiv / HuggingFace / Semantic Scholar 三源搜索，AI 查询扩展，批量摘要生成
+- **论文讨论模式** — 多智能体结构化论文评审：5 个专家角色（Moderator / Librarian / Skeptic / Reproducer / Scribe）经过 6 个阶段（议程→证据→批判→复现→共识→报告）生成结构化评审报告，支持快速/完整两种模式
+- **论文笔记管理** — 本地笔记目录集成，讨论保存到文件，AI 智能关联笔记
 - **主题风格** — 默认 / 卡通 / 赛博像素 / 复古掌机四种视觉风格
 
 ---
@@ -307,6 +310,8 @@ Agent 面板支持向 Kubernetes 集群提交 GPU 计算任务。
 - **AI 智能搜索**：在任意输入框输入自然语言描述（如 "diffusion models for video generation"），点击 **"AI Search"** → AI 自动提取优化关键词并跨三源搜索
 - **论文摘要**：勾选论文后点击 **"Summarize"** 生成 AI 结构化摘要
 - **论文讨论**：点击论文预览后可与 AI 讨论论文细节
+- **多智能体论文讨论**：在论文预览的 **"Discussion"** 标签页，启动 5 角色结构化讨论（主持人/文献专家/质疑者/复现者/记录员），经过 6 个阶段自动生成评审报告。支持 Quick（简洁）和 Full（完整）两种模式，可导出 Markdown 或保存到笔记
+- **论文笔记**：在 **"Notes"** 标签页管理本地笔记目录，保存讨论记录，AI 自动发现关联笔记
 
 ### 7. 多 Agent 会话 / Multi-Agent Sessions
 在工作空间的 Agent 面板中，点击 **"+"** 按钮创建新会话。每个会话独立维护对话上下文和记忆：
@@ -470,6 +475,7 @@ src/
 ├── lib/                          # 核心逻辑
 │   ├── ai/                       # AI 提供商、Agent 工具、提示词
 │   ├── article-search/           # 论文搜索（arXiv / HuggingFace / Semantic Scholar）
+│   ├── paper-discussion/         # 多智能体论文讨论（角色/提示词/编排器）
 │   ├── db/                       # Drizzle ORM + SQLite
 │   ├── rag/                      # RAG 管道（分块/嵌入/检索）
 │   ├── bot/feishu/               # 飞书适配器
