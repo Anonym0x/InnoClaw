@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Save,
   Check,
+  Users,
   FileText,
   Link2,
 } from "lucide-react";
@@ -25,6 +26,7 @@ import { DefaultChatTransport } from "ai";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import type { Article } from "@/lib/article-search/types";
+import { PaperDiscussionPanel } from "./paper-discussion-panel";
 import { PaperNotesPanel } from "./paper-notes-panel";
 
 interface RelatedNote {
@@ -43,6 +45,7 @@ interface ArticlePreviewProps {
 
 export function ArticlePreview({
   article,
+  workspaceId,
   onClose,
   notesDir = "",
   onSetNotesDir,
@@ -264,6 +267,10 @@ export function ArticlePreview({
             <FileText className="h-3 w-3" />
             {t("notesTab")}
           </TabsTrigger>
+          <TabsTrigger value="discussion" className="gap-1 text-xs" disabled={!article}>
+            <Users className="h-3 w-3" />
+            {t("discussionTab")}
+          </TabsTrigger>
         </TabsList>
 
         {/* Detail tab */}
@@ -480,6 +487,11 @@ export function ArticlePreview({
             notesDir={notesDir}
             onSetNotesDir={onSetNotesDir || (() => {})}
           />
+        </TabsContent>
+
+        {/* Discussion tab */}
+        <TabsContent value="discussion" className="flex-1 overflow-hidden mt-0">
+          {article && <PaperDiscussionPanel article={article} workspaceId={workspaceId} />}
         </TabsContent>
       </Tabs>
     </div>

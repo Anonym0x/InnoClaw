@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { Plus, X, Check, Pencil, Bot } from "lucide-react";
+import { Plus, X, Check, Pencil, Bot, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -91,7 +91,7 @@ export function AgentSessionTabs({
 
   // With only one session, show just the icon + "+" button (no tab needed)
   if (sessions.length <= 1) {
-    const singleSessionLoading = sessions.length === 1 && loadingSessions[sessions[0].id];
+    const singleSessionLoading = sessions.length === 1 && !!loadingSessions[sessions[0].id];
     return (
       <div className="flex items-center gap-1.5 px-2 py-1 shrink-0 border-b border-border/50 bg-muted/30">
         <Bot className={`h-3.5 w-3.5 text-agent-accent ${singleSessionLoading ? "animate-pulse" : ""}`} />
@@ -153,7 +153,12 @@ export function AgentSessionTabs({
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
-              <span className="max-w-[100px] truncate">{session.name}</span>
+              <>
+                {isSessionLoading && (
+                  <Loader2 className="h-3 w-3 animate-spin text-primary shrink-0" />
+                )}
+                <span className="max-w-[100px] truncate">{session.name}</span>
+              </>
             )}
 
             {!isEditing && (
