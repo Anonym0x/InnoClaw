@@ -4,7 +4,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { db } from "@/lib/db";
 import { appSettings } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { DEFAULT_PROVIDER, DEFAULT_MODEL } from "./models";
+import { DEFAULT_PROVIDER, DEFAULT_MODEL, PROVIDERS } from "./models";
 import type { LanguageModel } from "ai";
 
 /**
@@ -79,6 +79,15 @@ export async function getConfiguredModel(): Promise<LanguageModel> {
       return gemini.chat(modelId);
     case "anthropic":
       return anthropic(modelId);
+    case "shlab": {
+      // Each SH-Lab model has its own base URL; create a per-model provider.
+      const shlabModel = PROVIDERS.shlab.models.find((m) => m.id === modelId);
+      const shlabProvider = createOpenAI({
+        apiKey: process.env.SHLAB_API_KEY || "EMPTY",
+        baseURL: shlabModel?.baseUrl,
+      });
+      return shlabProvider.chat(modelId);
+    }
     default:
       // Use the configured modelId even for unknown providers – the user may be
       // pointing OPENAI_BASE_URL at a third-party OpenAI-compatible service.
