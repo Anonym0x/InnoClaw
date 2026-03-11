@@ -165,7 +165,8 @@
     "generatingWeeklyReport": "生成中...",
     "weeklyReportSuccess": "每周周报已生成",
     "weeklyReportSkipped": "本周没有记忆笔记",
-    "weeklyReportExists": "本周的每周周报已存在"
+    "weeklyReportExists": "本周的每周周报已存在",
+    "paper_discussion": "论文研讨"
   },
   "settings": {
     "title": "设置",

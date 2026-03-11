@@ -155,7 +155,7 @@ export function PaperDiscussionPanel({ article, workspaceId }: PaperDiscussionPa
           workspaceId,
           title,
           content,
-          type: "paper",
+          type: "paper_discussion",
         }),
       });
 
