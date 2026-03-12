@@ -13,7 +13,7 @@ import { parseSkillRow } from "@/lib/db/skills-utils";
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages: uiMessages, workspaceId, cwd, skillId, paramValues, mode, llmProvider, llmModel } =
+    const { messages: uiMessages, workspaceId, cwd, skillId, paramValues, mode, llmProvider, llmModel, sessionCreatedAt } =
       await req.json();
 
     if (!workspaceId || !cwd || typeof cwd !== "string") {
@@ -93,15 +93,15 @@ export async function POST(req: NextRequest) {
       }
 
       systemPrompt = buildSkillSystemPrompt(skill, cwd, paramValues || {});
-      tools = createAgentTools(cwd, skill.allowedTools, workspaceId);
+      tools = createAgentTools(cwd, skill.allowedTools, workspaceId, sessionCreatedAt);
     } else if (mode === "plan") {
       // Plan mode: read-only tools, focus on analysis and planning
       systemPrompt = buildPlanSystemPrompt(cwd);
-      tools = createAgentTools(cwd, ["readFile", "listDirectory", "grep"], workspaceId);
+      tools = createAgentTools(cwd, ["readFile", "listDirectory", "grep"], workspaceId, sessionCreatedAt);
     } else if (mode === "ask") {
       // Ask mode: read-only tools, can read files but never write or execute
       systemPrompt = buildAskSystemPrompt(cwd);
-      tools = createAgentTools(cwd, ["readFile", "listDirectory", "grep"], workspaceId);
+      tools = createAgentTools(cwd, ["readFile", "listDirectory", "grep"], workspaceId, sessionCreatedAt);
     } else {
       // Default agent mode: load skill catalog for auto-matching
       let skillCatalog: { slug: string; name: string; description: string | null }[] | undefined;
@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
       }
 
       systemPrompt = buildAgentSystemPrompt(cwd, skillCatalog, { noTools: !useTools });
-      tools = createAgentTools(cwd, undefined, workspaceId);
+      tools = createAgentTools(cwd, undefined, workspaceId, sessionCreatedAt);
     }
 
     // Sanitize UI messages: remove tool invocation parts with missing input

@@ -1,7 +1,9 @@
 import { tool } from "ai";
 import { z } from "zod";
+import path from "path";
 import { execInWorkspace } from "@/lib/utils/shell";
 import { TRUNCATE, BUFFER } from "@/lib/constants";
+import { copyToResearchHistory } from "./research-history";
 import type { ToolContext } from "./types";
 
 export function createShellTools(ctx: ToolContext) {
@@ -20,7 +22,31 @@ export function createShellTools(ctx: ToolContext) {
       }),
       execute: async ({ command, timeout }) => {
         const timeoutMs = Math.max(1000, Math.min((timeout ?? 30) * 1000, 300_000));
-        return execInWorkspace(command, ctx.validatedCwd, { timeout: timeoutMs });
+        const startTime = Date.now();
+        const result = await execInWorkspace(command, ctx.validatedCwd, { timeout: timeoutMs });
+
+        // Best-effort: detect and copy newly created/modified files to research history
+        if (ctx.researchHistoryDir) {
+          try {
+            const elapsedSec = Math.ceil((Date.now() - startTime) / 1000) + 1;
+            const findResult = await execInWorkspace(
+              `find . -maxdepth 5 -type f -not -path './history/*' -not -path './.git/*' -not -path '*/node_modules/*' -not -path '*/__pycache__/*' -newermt '${elapsedSec} seconds ago' 2>/dev/null`,
+              ctx.validatedCwd,
+              { timeout: 5000 }
+            );
+            if (findResult.stdout) {
+              const files = findResult.stdout.trim().split("\n").filter(Boolean);
+              for (const relFile of files) {
+                try {
+                  const absFile = path.resolve(ctx.validatedCwd, relFile);
+                  await copyToResearchHistory(absFile, ctx.validatedCwd, ctx.researchHistoryDir);
+                } catch { /* skip individual file errors */ }
+              }
+            }
+          } catch { /* don't fail the tool */ }
+        }
+
+        return result;
       },
     }),
 
