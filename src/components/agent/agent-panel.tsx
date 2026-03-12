@@ -75,6 +75,7 @@ interface AgentPanelProps {
   folderPath: string;
   sessionId: string;
   sessionName?: string;
+  sessionCreatedAt?: string;
   onLoadingChange?: (loading: boolean) => void;
 }
 
@@ -84,6 +85,7 @@ export function AgentPanel({
   folderPath,
   sessionId,
   sessionName,
+  sessionCreatedAt,
   onLoadingChange,
 }: AgentPanelProps) {
   const t = useTranslations("agent");
@@ -330,7 +332,7 @@ export function AgentPanel({
   // Mutable body object — allows injecting skillId/paramValues before each send
   const agentBody = useMemo(
     () =>
-      ({ workspaceId, cwd: folderPath, mode: "agent" }) as Record<string, unknown>,
+      ({ workspaceId, cwd: folderPath, mode: "agent", sessionCreatedAt }) as Record<string, unknown>,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
@@ -339,7 +341,8 @@ export function AgentPanel({
   useEffect(() => {
     agentBody.workspaceId = workspaceId;
     agentBody.cwd = folderPath;
-  }, [workspaceId, folderPath, agentBody]);
+    agentBody.sessionCreatedAt = sessionCreatedAt;
+  }, [workspaceId, folderPath, sessionCreatedAt, agentBody]);
 
   // Stream key for the background stream manager (use refs so the memoized
   // transport always reads the latest values).

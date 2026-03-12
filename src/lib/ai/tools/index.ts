@@ -6,6 +6,8 @@ import { createShellTools } from "./shell-tools";
 import { createK8sTools } from "./k8s-tools";
 import { createSearchTools } from "./search-tools";
 import { createSkillTools } from "./skill-tools";
+import { createMcpTools } from "./mcp-tools";
+import { formatTimestampForDir } from "./research-history";
 import type { ToolContext } from "./types";
 
 export type { ToolContext } from "./types";
@@ -13,7 +15,8 @@ export type { ToolContext } from "./types";
 export function createAgentTools(
   workspaceCwd: string,
   allowedTools?: string[] | null,
-  workspaceId?: string | null
+  workspaceId?: string | null,
+  sessionCreatedAt?: string | null
 ) {
   const validatedCwd = validatePath(workspaceCwd);
 
@@ -35,12 +38,18 @@ export function createAgentTools(
     return validatePath(resolved);
   }
 
+  // Compute research history directory from session timestamp
+  const researchHistoryDir = sessionCreatedAt
+    ? path.join(validatedCwd, "history", formatTimestampForDir(sessionCreatedAt))
+    : undefined;
+
   const ctx: ToolContext = {
     validatedCwd,
     resolvePath,
     kubeconfigPath,
     baseExecEnv,
     workspaceId,
+    researchHistoryDir,
   };
 
   const allTools = {
@@ -49,6 +58,7 @@ export function createAgentTools(
     ...createK8sTools(ctx),
     ...createSearchTools(),
     ...createSkillTools(workspaceId),
+    ...createMcpTools(ctx),
   };
 
   // Filter tools if allowedTools is specified

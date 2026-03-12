@@ -6,6 +6,7 @@ import {
   listDirectory as fsListDirectory,
 } from "@/lib/files/filesystem";
 import { TRUNCATE } from "@/lib/constants";
+import { copyToResearchHistory } from "./research-history";
 import type { ToolContext } from "./types";
 
 export function createFileTools(ctx: ToolContext) {
@@ -37,6 +38,12 @@ export function createFileTools(ctx: ToolContext) {
       execute: async ({ filePath, content }) => {
         const resolved = ctx.resolvePath(filePath);
         await fsWriteFile(resolved, content);
+        // Best-effort copy to research history
+        if (ctx.researchHistoryDir) {
+          try {
+            await copyToResearchHistory(resolved, ctx.validatedCwd, ctx.researchHistoryDir);
+          } catch { /* don't fail the tool */ }
+        }
         return {
           success: true,
           path: resolved,
