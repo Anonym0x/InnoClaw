@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { streamText, convertToModelMessages, UIMessage, stepCountIs } from "ai";
-import { getConfiguredModelWithProvider, isAIAvailable } from "@/lib/ai/provider";
+import { getConfiguredModelWithProvider, getModelFromOverride, isAIAvailable } from "@/lib/ai/provider";
 import { createAgentTools } from "@/lib/ai/agent-tools";
 import { buildAgentSystemPrompt, buildPlanSystemPrompt, buildAskSystemPrompt } from "@/lib/ai/prompts";
 import { buildSkillSystemPrompt } from "@/lib/ai/skill-prompt";
@@ -12,7 +12,7 @@ import { parseSkillRow } from "@/lib/db/skills-utils";
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages: uiMessages, workspaceId, cwd, skillId, paramValues, mode } =
+    const { messages: uiMessages, workspaceId, cwd, skillId, paramValues, mode, llmProvider, llmModel } =
       await req.json();
 
     if (!workspaceId || !cwd || typeof cwd !== "string") {
@@ -26,7 +26,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { providerId, model } = await getConfiguredModelWithProvider();
+    const { providerId, model } = llmProvider && llmModel
+      ? getModelFromOverride(llmProvider, llmModel)
+      : await getConfiguredModelWithProvider();
     const useTools = providerSupportsTools(providerId);
     let systemPrompt: string;
     let tools;
