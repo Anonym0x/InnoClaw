@@ -10,4 +10,6 @@ export interface ToolContext {
   baseExecEnv: NodeJS.ProcessEnv;
   /** Optional workspace ID for recording cluster operations. */
   workspaceId?: string | null;
+  /** Absolute path to the research history directory for the current session (if available). */
+  researchHistoryDir?: string;
 }

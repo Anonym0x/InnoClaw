@@ -300,6 +300,7 @@ export default function WorkspacePage({
                               folderPath={workspace.folderPath}
                               sessionId={session.id}
                               sessionName={session.name}
+                              sessionCreatedAt={session.createdAt}
                               onLoadingChange={(loading) => handleSessionLoadingChange(session.id, loading)}
                             />
                           </div>
