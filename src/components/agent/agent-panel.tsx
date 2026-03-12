@@ -28,7 +28,8 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useSkills } from "@/lib/hooks/use-skills";
-import { getOverflowThresholdChars, getMessageTextLength } from "@/lib/ai/models";
+import { getOverflowThresholdChars, getMessageTextLength, PROVIDERS } from "@/lib/ai/models";
+import type { ProviderId } from "@/lib/ai/models";
 import { SkillAutocomplete } from "@/components/skills/skill-autocomplete";
 import { SkillParameterDialog } from "@/components/skills/skill-parameter-dialog";
 import {
@@ -93,6 +94,10 @@ export function AgentPanel({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<AgentMode>("agent");
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string | null>(null);
+
+  const MODEL_SELECTION_STORAGE_KEY = "innoclaw-agent-model-selection";
 
   // Draggable input area height
   const [inputHeight, setInputHeight] = useState(80);
@@ -229,6 +234,98 @@ export function AgentPanel({
 
   const { data: settings } = useSWR("/api/settings", fetcher);
   const aiEnabled = settings?.hasAIKey ?? false;
+
+  // Initialize model selection from localStorage, then fall back to global settings
+  useEffect(() => {
+    if (selectedProvider !== null) return; // already initialized
+
+    // Try to read a stored selection from localStorage
+    let storedSelection: { provider: string; model: string } | null = null;
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        const stored = window.localStorage.getItem(MODEL_SELECTION_STORAGE_KEY);
+        if (stored) {
+          try {
+            storedSelection = JSON.parse(stored);
+          } catch {
+            // Ignore parse errors and treat as no stored selection
+          }
+        }
+      }
+    } catch {
+      // Ignore storage access errors and fall back to settings
+    }
+
+    const configuredProviders = settings?.configuredProviders as string[] | undefined;
+
+    const isValidSelection = (selection: { provider: string; model: string } | null) => {
+      if (!selection) return false;
+      const { provider, model } = selection;
+      if (!provider || !model) return false;
+      const providerDef = PROVIDERS[provider as ProviderId];
+      if (!providerDef) return false;
+      if (configuredProviders && !configuredProviders.includes(provider)) return false;
+      const hasModel = providerDef.models.some((m) => m.id === model);
+      return hasModel;
+    };
+
+    if (isValidSelection(storedSelection)) {
+      setSelectedProvider(storedSelection!.provider);
+      setSelectedModel(storedSelection!.model);
+      return;
+    } else if (storedSelection) {
+      // Clear invalid stored value
+      try {
+        if (typeof window !== "undefined" && window.localStorage) {
+          window.localStorage.removeItem(MODEL_SELECTION_STORAGE_KEY);
+        }
+      } catch {
+        // Ignore storage access errors
+      }
+    }
+
+    // Fall back to global settings if available and valid
+    if (settings?.llmProvider && settings?.llmModel) {
+      const fallbackSelection = {
+        provider: settings.llmProvider as string,
+        model: settings.llmModel as string,
+      };
+      if (isValidSelection(fallbackSelection)) {
+        setSelectedProvider(fallbackSelection.provider);
+        setSelectedModel(fallbackSelection.model);
+      }
+    }
+  }, [settings?.llmProvider, settings?.llmModel, settings?.configuredProviders, selectedProvider]);
+
+  const handleModelChange = useCallback((providerId: string, modelId: string) => {
+    setSelectedProvider(providerId);
+    setSelectedModel(modelId);
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem(
+          MODEL_SELECTION_STORAGE_KEY,
+          JSON.stringify({ provider: providerId, model: modelId })
+        );
+      }
+    } catch {
+      // Ignore storage access errors; state has already been updated
+    }
+  }, []);
+
+  const modelDisplayName = useMemo(() => {
+    if (!selectedProvider || !selectedModel) return t("modelLabel");
+    const provider = PROVIDERS[selectedProvider as ProviderId];
+    const model = provider?.models.find((m) => m.id === selectedModel);
+    return model?.name ?? selectedModel;
+  }, [selectedProvider, selectedModel, t]);
+
+  const availableProviders = useMemo(() => {
+    const configured = settings?.configuredProviders as string[] | undefined;
+    if (!configured) return [];
+    return configured
+      .map((id: string) => PROVIDERS[id as ProviderId])
+      .filter(Boolean);
+  }, [settings?.configuredProviders]);
 
   // Mutable body object — allows injecting skillId/paramValues before each send
   const agentBody = useMemo(
@@ -506,8 +603,8 @@ export function AgentPanel({
     };
   }, [status, messages, sendMessage, t]);
   const overflowThreshold = getOverflowThresholdChars(
-    settings?.llmProvider ?? "openai",
-    settings?.llmModel ?? "gpt-4o-mini",
+    selectedProvider ?? settings?.llmProvider ?? "openai",
+    selectedModel ?? settings?.llmModel ?? "gpt-4o-mini",
     settings?.contextMode ?? "normal"
   );
 
@@ -692,6 +789,8 @@ export function AgentPanel({
     agentBody.skillId = skill.id;
     agentBody.paramValues = paramValues;
     agentBody.mode = mode;
+    agentBody.llmProvider = selectedProvider;
+    agentBody.llmModel = selectedModel;
 
     try {
       await sendMessage({
@@ -732,6 +831,8 @@ export function AgentPanel({
     setInput("");
     setShowAutocomplete(false);
     agentBody.mode = mode; // ensure mode is current before every request
+    agentBody.llmProvider = selectedProvider;
+    agentBody.llmModel = selectedModel;
     await sendMessage({ text });
   };
 
@@ -993,6 +1094,38 @@ export function AgentPanel({
         )}
 
         <div className="flex items-start gap-2 px-3 py-2 h-full">
+          {/* Model selector */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1 shrink-0 rounded px-1.5 py-0.5 text-xs text-agent-accent hover:bg-agent-card-hover transition-colors mt-1.5 max-w-[120px]">
+                <span className="truncate">{modelDisplayName}</span>
+                <ChevronDown className="h-3 w-3 shrink-0" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56 max-h-80 overflow-y-auto">
+              <DropdownMenuLabel className="text-xs">{t("modelLabel")}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {availableProviders.map((provider) => (
+                <React.Fragment key={provider.id}>
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">{provider.name}</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    key={provider.id}
+                    value={selectedProvider === provider.id ? (selectedModel ?? "") : ""}
+                    onValueChange={(modelId) => handleModelChange(provider.id, modelId)}
+                  >
+                    {provider.models.map((model: { id: string; name: string }) => (
+                      <DropdownMenuRadioItem key={model.id} value={model.id}>
+                        {model.name}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                  <DropdownMenuSeparator />
+                </React.Fragment>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Mode selector */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-1 shrink-0 rounded px-1.5 py-0.5 text-xs text-agent-accent hover:bg-agent-card-hover transition-colors mt-1.5">
