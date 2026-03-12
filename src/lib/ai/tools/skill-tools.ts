@@ -44,11 +44,20 @@ export function createSkillTools(workspaceId?: string | null) {
         }
 
         const skill = parseSkillRow(rows[0]);
+
+        // Replace SCP Hub API key placeholder with actual key at runtime.
+        // Many imported skills still have the placeholder in the DB.
+        const scpHubApiKey = process.env.SCP_HUB_API_KEY || "";
+        let instructions = skill.systemPrompt;
+        if (scpHubApiKey && instructions.includes("<YOUR_SCP_HUB_API_KEY>")) {
+          instructions = instructions.replaceAll("<YOUR_SCP_HUB_API_KEY>", scpHubApiKey);
+        }
+
         return {
           name: skill.name,
           slug: skill.slug,
           description: skill.description,
-          instructions: skill.systemPrompt,
+          instructions,
           steps: skill.steps,
         };
       },

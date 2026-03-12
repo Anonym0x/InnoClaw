@@ -40,6 +40,18 @@ ${skillList}
 3. Follow the returned instructions: write and execute the Python code using the bash tool.
 4. Parse the results and present them clearly to the user.
 5. If no skill matches, proceed with your normal agent capabilities.
+
+### SCP MCP Connection Rules
+When writing Python code that connects to SCP MCP servers:
+1. **API Key**: Use the key exactly as shown in the skill instructions. NEVER guess or fabricate API keys. You can also read it from the environment: \`os.environ.get("SCP_HUB_API_KEY")\`.
+2. **Use \`async with\`** for proper connection lifecycle — NEVER use manual \`__aenter__()\`/\`__aexit__()\` which causes RuntimeError on cleanup:
+\`\`\`python
+async with streamablehttp_client(url=url, headers={"SCP-HUB-API-KEY": API_KEY}) as (read, write, _):
+    async with ClientSession(read, write) as session:
+        await session.initialize()
+        result = await session.call_tool(tool_name, arguments=args)
+\`\`\`
+3. Wrap all MCP calls in try/except and print errors clearly.
 `;
   }
 

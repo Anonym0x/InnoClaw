@@ -19,6 +19,9 @@ function ensureExtraPaths(basePath: string): string {
   const home = resolveHome();
   const extras = [
     path.join(home, ".local", "bin"),
+    // Python paths: macOS Python.org framework installs & common locations
+    "/Library/Frameworks/Python.framework/Versions/Current/bin",
+    "/opt/homebrew/bin",
   ];
   const existing = new Set(basePath.split(":"));
   const missing = extras.filter((p) => !existing.has(p));
@@ -44,6 +47,10 @@ export function buildSafeExecEnv(
     NODE_ENV: process.env.NODE_ENV || "production",
     TERM: "dumb",
     LANG: process.env.LANG || "en_US.UTF-8",
+    // Pass SCP Hub API key to child Python processes
+    ...(process.env.SCP_HUB_API_KEY
+      ? { SCP_HUB_API_KEY: process.env.SCP_HUB_API_KEY }
+      : {}),
   };
 
   // Windows requires additional system environment variables
