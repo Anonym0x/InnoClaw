@@ -103,6 +103,7 @@ scope: global
 /**
  * Parse a SKILL.md markdown string back into skill data.
  */
+
 /** Canonical set of known tool names for validation. */
 const KNOWN_TOOLS = new Set<string>(EVERY_TOOL);
 
