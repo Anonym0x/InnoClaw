@@ -1,4 +1,4 @@
-import type { Skill, SkillStep, SkillParameter, SkillExportData } from "@/types";
+import type { Skill, SkillStep, SkillParameter } from "@/types";
 import { slugify } from "./slugify";
 
 /**
