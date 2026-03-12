@@ -16,7 +16,7 @@ export async function copyToResearchHistory(
   const relativePath = path.relative(workspaceCwd, filePath);
 
   // Skip files that are already inside history/ to avoid recursion
-  if (relativePath.startsWith("history")) return;
+  if (relativePath === "history" || relativePath.startsWith(`history${path.sep}`)) return;
 
   // Skip hidden directories and common non-content paths
   if (relativePath.startsWith(".git") || relativePath.includes("node_modules")) return;
