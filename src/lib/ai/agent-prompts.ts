@@ -43,9 +43,11 @@ ${skillList}
 
 ### SCP MCP Connection Rules
 When writing Python code that connects to SCP MCP servers:
-1. **API Key**: Always read the SCP Hub API key from the environment using \`os.environ["SCP_HUB_API_KEY"]\` in Python or \`$SCP_HUB_API_KEY\` in bash. NEVER hardcode, print, log, or return the API key in outputs.
+1. **API Key**: Always \`import os\` first, then read the SCP Hub API key via \`API_KEY = os.environ["SCP_HUB_API_KEY"]\` in Python (or \`$SCP_HUB_API_KEY\` in bash). NEVER hardcode, print, log, or return the API key in outputs.
 2. **Use \`async with\`** for proper connection lifecycle — NEVER use manual \`__aenter__()\`/\`__aexit__()\` which causes RuntimeError on cleanup:
 \`\`\`python
+import os
+API_KEY = os.environ["SCP_HUB_API_KEY"]
 async with streamablehttp_client(url=url, headers={"SCP-HUB-API-KEY": API_KEY}) as (read, write, _):
     async with ClientSession(read, write) as session:
         await session.initialize()

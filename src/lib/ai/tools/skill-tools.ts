@@ -47,12 +47,14 @@ export function createSkillTools(workspaceId?: string | null) {
 
         // Replace SCP Hub API key placeholder with a Python environment lookup.
         // Many imported skills still have the placeholder in the DB.
+        // Handle quoted placeholder forms first so we don't leave invalid nested quotes.
         let instructions = skill.systemPrompt;
         if (instructions.includes("<YOUR_SCP_HUB_API_KEY>")) {
-          instructions = instructions.replaceAll(
-            "<YOUR_SCP_HUB_API_KEY>",
-            'os.environ["SCP_HUB_API_KEY"]'
-          );
+          const scpHubEnvExpr = 'os.environ["SCP_HUB_API_KEY"]';
+          instructions = instructions
+            .replaceAll('"<YOUR_SCP_HUB_API_KEY>"', scpHubEnvExpr)
+            .replaceAll("'<YOUR_SCP_HUB_API_KEY>'", scpHubEnvExpr)
+            .replaceAll("<YOUR_SCP_HUB_API_KEY>", scpHubEnvExpr);
         }
 
         return {
