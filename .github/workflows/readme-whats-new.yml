@@ -187,15 +187,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Check if branch already exists
-          if git ls-remote --exit-code origin "refs/heads/${BRANCH}" >/dev/null 2>&1; then
-            echo "Branch ${BRANCH} already exists, updating."
-            git fetch origin "${BRANCH}"
-            git checkout "${BRANCH}"
-            git merge main --no-edit || true
-          else
-            git checkout -b "${BRANCH}"
-          fi
+          # Create or reset branch from current state (README already modified)
+          git checkout -B "${BRANCH}"
 
           git add README.md
           git commit -m "docs: update What's New section (${TODAY})" || {
