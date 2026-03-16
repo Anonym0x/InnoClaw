@@ -159,26 +159,31 @@ class AgentStreamManager {
           lastSaveTime = now;
           lastSavedMessageCount = entry.messages.length;
           lastSavedPartCount = currentPartCount;
-          // Defer non-critical saves to idle time to avoid blocking the main thread
-          if (typeof requestIdleCallback !== "undefined") {
-            requestIdleCallback(() => this.saveToLocalStorage(entry), { timeout: 3000 });
-          } else {
-            setTimeout(() => this.saveToLocalStorage(entry), 0);
-          }
-          // Only dispatch the cross-tab event when the panel is unmounted
-          // (no direct subscribers). Otherwise the mounted panel handles updates.
-          if (entry.subscribers.size === 0) {
-            this.notifyUpdate(entry);
-          } else {
-            // When there are subscribers, notify them directly while avoiding
-            // the global cross-tab event.
-            for (const callback of entry.subscribers) {
-              try {
-                callback();
-              } catch {
-                // Swallow subscriber errors to avoid breaking the stream loop.
+          // Defer non-critical saves to idle time to avoid blocking the main thread,
+          // and only notify listeners after the save has completed so they see
+          // the latest persisted state in localStorage.
+          const runSaveAndNotify = () => {
+            this.saveToLocalStorage(entry);
+            // Only dispatch the cross-tab event when the panel is unmounted
+            // (no direct subscribers). Otherwise the mounted panel handles updates.
+            if (entry.subscribers.size === 0) {
+              this.notifyUpdate(entry);
+            } else {
+              // When there are subscribers, notify them directly while avoiding
+              // the global cross-tab event.
+              for (const callback of entry.subscribers) {
+                try {
+                  callback();
+                } catch {
+                  // Swallow subscriber errors to avoid breaking the stream loop.
+                }
               }
             }
+          };
+          if (typeof requestIdleCallback !== "undefined") {
+            requestIdleCallback(() => runSaveAndNotify(), { timeout: 3000 });
+          } else {
+            setTimeout(() => runSaveAndNotify(), 0);
           }
         }
       }
