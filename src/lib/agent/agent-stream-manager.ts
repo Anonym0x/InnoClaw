@@ -149,13 +149,10 @@ class AgentStreamManager {
           entry.messages.push(message);
         }
 
-        // Periodically persist to localStorage (with dirty check)
+        // Periodically persist to localStorage (time-based; content may change without part-count changes)
         const now = Date.now();
         const currentPartCount = entry.messages.reduce((sum, m) => sum + (m.parts?.length ?? 0), 0);
-        if (
-          now - lastSaveTime > SAVE_INTERVAL &&
-          (entry.messages.length !== lastSavedMessageCount || currentPartCount !== lastSavedPartCount)
-        ) {
+        if (now - lastSaveTime > SAVE_INTERVAL) {
           lastSaveTime = now;
           lastSavedMessageCount = entry.messages.length;
           lastSavedPartCount = currentPartCount;
