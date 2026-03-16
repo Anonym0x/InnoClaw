@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
       systemPrompt = buildAskSystemPrompt(cwd);
       tools = createAgentTools(cwd, ["readFile", "listDirectory", "grep"], workspaceId, sessionCreatedAt);
     } else {
-      // Agent modes (agent-long, agent-short, or legacy "agent"): load skill catalog
+      // Agent modes ("agent" (default), "long-agent", or legacy "agent"): load skill catalog
       let skillCatalog: { slug: string; name: string; description: string | null }[] | undefined;
       try {
         const skillRows = await db
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
         // Long Agent: research execution pipeline mode — enhanced prompt
         systemPrompt = buildAgentLongSystemPrompt(cwd, skillCatalog, { noTools: !useTools });
       } else {
-        // Agent-Short (default): standard agent mode
+        // Agent (default): standard agent mode
         systemPrompt = buildAgentSystemPrompt(cwd, skillCatalog, { noTools: !useTools });
       }
       tools = createAgentTools(cwd, undefined, workspaceId, sessionCreatedAt);
