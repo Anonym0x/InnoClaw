@@ -134,8 +134,6 @@ class AgentStreamManager {
       const messageStream = readUIMessageStream({ stream: chunkStream });
 
       let lastSaveTime = 0;
-      let lastSavedMessageCount = 0;
-      let lastSavedPartCount = 0;
       const SAVE_INTERVAL = 5000; // save at most every 5s to reduce main-thread churn
 
       // Step 3: Iterate over the message stream – each yield is the latest
@@ -151,11 +149,8 @@ class AgentStreamManager {
 
         // Periodically persist to localStorage (time-based; content may change without part-count changes)
         const now = Date.now();
-        const currentPartCount = entry.messages.reduce((sum, m) => sum + (m.parts?.length ?? 0), 0);
         if (now - lastSaveTime > SAVE_INTERVAL) {
           lastSaveTime = now;
-          lastSavedMessageCount = entry.messages.length;
-          lastSavedPartCount = currentPartCount;
           // Defer non-critical saves to idle time to avoid blocking the main thread,
           // and only notify listeners after the save has completed so they see
           // the latest persisted state in localStorage.
