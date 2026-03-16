@@ -134,7 +134,9 @@ class AgentStreamManager {
       const messageStream = readUIMessageStream({ stream: chunkStream });
 
       let lastSaveTime = 0;
-      const SAVE_INTERVAL = 2000; // save at most every 2s to reduce main-thread churn
+      let lastSavedMessageCount = 0;
+      let lastSavedPartCount = 0;
+      const SAVE_INTERVAL = 5000; // save at most every 5s to reduce main-thread churn
 
       // Step 3: Iterate over the message stream – each yield is the latest
       // snapshot of the assistant message being built.
@@ -147,11 +149,22 @@ class AgentStreamManager {
           entry.messages.push(message);
         }
 
-        // Periodically persist to localStorage
+        // Periodically persist to localStorage (with dirty check)
         const now = Date.now();
-        if (now - lastSaveTime > SAVE_INTERVAL) {
+        const currentPartCount = entry.messages.reduce((sum, m) => sum + (m.parts?.length ?? 0), 0);
+        if (
+          now - lastSaveTime > SAVE_INTERVAL &&
+          (entry.messages.length !== lastSavedMessageCount || currentPartCount !== lastSavedPartCount)
+        ) {
           lastSaveTime = now;
-          this.saveToLocalStorage(entry);
+          lastSavedMessageCount = entry.messages.length;
+          lastSavedPartCount = currentPartCount;
+          // Defer non-critical saves to idle time to avoid blocking the main thread
+          if (typeof requestIdleCallback !== "undefined") {
+            requestIdleCallback(() => this.saveToLocalStorage(entry), { timeout: 3000 });
+          } else {
+            setTimeout(() => this.saveToLocalStorage(entry), 0);
+          }
           // Only dispatch the cross-tab event when the panel is unmounted
           // (no direct subscribers). Otherwise the mounted panel handles updates.
           if (entry.subscribers.size === 0) {
