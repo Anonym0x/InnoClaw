@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
       systemPrompt = buildAskSystemPrompt(cwd);
       tools = createAgentTools(cwd, ["readFile", "listDirectory", "grep"], workspaceId, sessionCreatedAt);
     } else {
-      // Agent modes (agent-long, agent-short, or legacy "agent"): load skill catalog
+      // Agent modes ("agent" (default), "long-agent", or legacy "agent"): load skill catalog
       let skillCatalog: { slug: string; name: string; description: string | null }[] | undefined;
       try {
         const skillRows = await db
@@ -132,11 +132,11 @@ export async function POST(req: NextRequest) {
         // Skills table might not exist yet; proceed without catalog
       }
 
-      if (mode === "agent-long") {
-        // Agent-Long: research execution pipeline mode — enhanced prompt
+      if (mode === "long-agent") {
+        // Long Agent: research execution pipeline mode — enhanced prompt
         systemPrompt = buildAgentLongSystemPrompt(cwd, skillCatalog, { noTools: !useTools });
       } else {
-        // Agent-Short (default): standard agent mode
+        // Agent (default): standard agent mode
         systemPrompt = buildAgentSystemPrompt(cwd, skillCatalog, { noTools: !useTools });
       }
       tools = createAgentTools(cwd, undefined, workspaceId, sessionCreatedAt);
@@ -158,14 +158,16 @@ export async function POST(req: NextRequest) {
 
     const modelMessages = await convertToModelMessages(sanitizedMessages);
 
-    const isLongMode = mode === "agent-long";
-    const MAX_STEPS_UPPER_BOUND = 100;
+    const DEFAULT_MAX_STEPS = 50;
+    const LONG_AGENT_MAX_STEPS = 200;
+    const MAX_STEPS_UPPER_BOUND = 200;
     const parsedSteps = parseInt(process.env.AGENT_MAX_STEPS || "", 10);
-    const maxSteps = isLongMode
-      ? MAX_STEPS_UPPER_BOUND // Always 100 for long mode
-      : (Number.isFinite(parsedSteps) && parsedSteps > 0
-          ? Math.min(parsedSteps, MAX_STEPS_UPPER_BOUND)
-          : 50);
+    const envMaxSteps = Number.isFinite(parsedSteps) && parsedSteps > 0
+      ? Math.min(parsedSteps, MAX_STEPS_UPPER_BOUND)
+      : undefined;
+    const maxSteps = mode === "long-agent"
+      ? (envMaxSteps ?? LONG_AGENT_MAX_STEPS)
+      : (envMaxSteps ?? DEFAULT_MAX_STEPS);
 
     // Skip tools for providers that don't support tool calling (e.g. vLLM without --enable-auto-tool-choice)
 
