@@ -13,12 +13,12 @@ import { buildDiscussionPrompt } from "./prompts";
 // PER-STAGE TOKEN LIMITS — each role has different output needs
 // =============================================================
 const STAGE_TOKEN_LIMITS: Record<DiscussionStageId, { quick: number; full: number }> = {
-  agenda:                { quick: 500,  full: 1000 },
-  evidence_summary:      { quick: 1200, full: 3000 },
-  critique:              { quick: 1000, full: 2500 },
-  reproducibility_check: { quick: 1000, full: 2500 },
-  convergence:           { quick: 600,  full: 1500 },
-  final_report:          { quick: 2000, full: 4000 },
+  agenda:                { quick: 1000, full: 1500 },
+  evidence_summary:      { quick: 2500, full: 5000 },
+  critique:              { quick: 2500, full: 5000 },
+  reproducibility_check: { quick: 2500, full: 5000 },
+  convergence:           { quick: 1200, full: 2500 },
+  final_report:          { quick: 4000, full: 8000 },
 };
 
 // =============================================================
@@ -61,10 +61,15 @@ export async function runPaperDiscussionStage(
     abortSignal,
   });
 
+  const text = result.text.trim();
+  if (text.length < 20) {
+    throw new Error("Model returned empty or trivially short response");
+  }
+
   return {
     stageId: stage.id,
     roleId: stage.roleId,
-    content: result.text,
+    content: text,
     timestamp: new Date().toISOString(),
   };
 }

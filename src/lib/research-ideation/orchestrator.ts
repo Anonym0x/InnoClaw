@@ -13,11 +13,11 @@ import { buildIdeationPrompt } from "./prompts";
 // PER-STAGE TOKEN LIMITS — each role has different output needs
 // =============================================================
 const STAGE_TOKEN_LIMITS: Record<IdeationStageId, { quick: number; full: number }> = {
-  hypothesis_generation: { quick: 1000, full: 2500 },
-  feasibility_review:    { quick: 1000, full: 2500 },
-  experiment_design:     { quick: 1200, full: 3000 },
-  review:                { quick: 800,  full: 2000 },
-  final_report:          { quick: 2000, full: 4000 },
+  hypothesis_generation: { quick: 2500, full: 5000 },
+  feasibility_review:    { quick: 2500, full: 5000 },
+  experiment_design:     { quick: 2500, full: 5000 },
+  review:                { quick: 2000, full: 4000 },
+  final_report:          { quick: 4000, full: 8000 },
 };
 
 // =============================================================
@@ -60,10 +60,15 @@ export async function runIdeationStage(
     abortSignal,
   });
 
+  const text = result.text.trim();
+  if (text.length < 20) {
+    throw new Error("Model returned empty or trivially short response");
+  }
+
   return {
     stageId: stage.id,
     roleId: stage.roleId,
-    content: result.text,
+    content: text,
     timestamp: new Date().toISOString(),
   };
 }

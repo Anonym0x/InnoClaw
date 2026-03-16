@@ -274,6 +274,11 @@ Agent 面板支持向 Kubernetes 集群提交 GPU 计算任务。
 
 <!-- whats-new-start -->
 
+#### 2026-03-16
+- **Paper Discussion & Ideation Robustness / 论文讨论与灵感生成稳定性提升**: Per-role token budgets (2–2.5x increase), automatic retry on empty/short responses, and error visibility in the UI. Fixes agents returning empty or truncated output with reasoning-capable models (SH-Lab, Qwen, etc.)
+- **Full Paper Context / 全文送入讨论智能体**: Discussion and ideation agents now receive up to 30k chars of the full paper text (local files) instead of just the abstract, enabling deeper analysis of methodology, experiments, and results
+- **Abstract Extraction Fix / 摘要提取修复**: Heuristic regex-based abstract extraction with improved AI prompt to prevent extracting author names instead of the actual abstract
+
 #### 2026-03-14
 - **Research Execution Engine / 研究执行引擎**: New AI-driven research orchestration system with remote profiles, capability toggles, run history, and agent tools
 - **Auto-updating README "What's New" / 自动更新 README 新功能板块**: GitHub Actions workflow that automatically generates and commits a bilingual What's New section daily
