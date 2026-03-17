@@ -898,6 +898,22 @@ mkdir -p ./data && npx drizzle-kit migrate  # 执行迁移
 
 ---
 
+## 社区交流 / Community
+
+加入 InnoClaw 用户社区，获取最新动态、交流使用心得、反馈问题建议！
+
+Join the InnoClaw community to get the latest updates, share your experience, and provide feedback!
+
+**飞书体验群 / Feishu Group：**
+
+<img src="site/social/飞书体验群.png" alt="InnoClaw 飞书体验群" width="200" />
+
+> 扫码加入飞书体验群，与开发者和其他用户直接交流。欢迎反馈 Bug、提出功能建议或分享使用经验！
+>
+> Scan the QR code to join our Feishu group. Feel free to report bugs, suggest features, or share your experience!
+
+---
+
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=zjowowen/InnoClaw&type=Date)](https://star-history.com/#zjowowen/InnoClaw&Date)
