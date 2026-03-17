@@ -1,5 +1,9 @@
 # InnoClaw
 
+<p align="center">
+  <img src="site/logos/20260316-112548.png" alt="InnoClaw Logo" width="200" />
+</p>
+
 一个可自托管的 AI 研究助手。将服务器文件夹作为工作空间，基于 RAG 与 AI 对话，内置 206 个科学技能。
 
 A self-hostable AI research assistant. Turn server-side folders into workspaces, chat with AI grounded in your documents via RAG, and leverage 206 built-in scientific skills.
