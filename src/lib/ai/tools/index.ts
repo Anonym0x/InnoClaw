@@ -17,7 +17,8 @@ export function createAgentTools(
   workspaceCwd: string,
   allowedTools?: string[] | null,
   workspaceId?: string | null,
-  sessionCreatedAt?: string | null
+  sessionCreatedAt?: string | null,
+  isLongAgent?: boolean,
 ) {
   const validatedCwd = validatePath(workspaceCwd);
 
@@ -51,6 +52,7 @@ export function createAgentTools(
     baseExecEnv,
     workspaceId,
     researchHistoryDir,
+    isLongAgent,
   };
 
   const allTools = {

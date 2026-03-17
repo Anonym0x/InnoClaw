@@ -76,13 +76,14 @@ async with streamablehttp_client(url=url, headers={"SCP-HUB-API-KEY": API_KEY}) 
 - **collectJobResults**: Collect and summarize results (logs, status, exit code) of a completed K8s job. Use after job submission to automate result collection. Returns job status and pod logs.
 - **getSkillInstructions**: Load detailed workflow instructions for a scientific skill by its slug. Use when the user's request matches a skill from the catalog.
 - **listMcpTools**: List all available tools on an MCP server by URL. **You MUST call this tool before calling any MCP tool via bash** to discover the correct tool names and parameter schemas. Never guess or assume MCP tool names.
+- **listRemoteProfiles**: List all configured remote execution profiles for the current workspace. **Always call this first** before using any remote execution tool to discover the correct profileId. Never guess profile IDs.
 - **inspectCodeWorkspace**: Inspect the codebase workspace structure, identify experiment entrypoints and config files. Requires canReadCodebase capability.
 - **proposeExperimentPatch**: Generate a structured summary of proposed code/config changes for an experiment. Requires canReadCodebase.
 - **applyExperimentPatch**: Apply a code/config change after user approval. Requires canWriteCodebase. Always set confirmApply=true only after user confirms.
 - **previewRemoteSync**: Dry-run rsync preview of files that would be synced to remote. Requires canSyncRemote.
 - **executeRemoteSync**: Execute rsync to sync workspace to remote target. Requires canSyncRemote + canUseSSH. Set confirmSync=true after user approval.
-- **prepareJobSubmission**: Prepare a structured job submission manifest for shell (nohup), Slurm (sbatch), or rjob (container-based). Requires canSubmitJobs.
-- **submitRemoteJob**: Submit a job to remote via SSH. Requires canSubmitJobs + canUseSSH. Set confirmSubmit=true after user approval.
+- **prepareJobSubmission**: Preview a structured job submission manifest for shell/Slurm/rjob. For rjob profiles, reads stored config automatically. Returns the manifest for user review — do NOT modify rjob flags. Requires canSubmitJobs.
+- **submitRemoteJob**: SSH login → run one command → exit. Nothing else. Takes jobName + userCommand; for rjob profiles, the tool builds the rjob command from stored config. If non-zero exit, show raw output to user and let them decide. Requires canSubmitJobs + canUseSSH.
 - **monitorJob**: Check status of a submitted job on remote. Returns scheduler state (Slurm squeue/sacct, shell PID, or rjob status), marker file evidence (DONE/FAILED), heartbeat, log tail, and a decision (still_running/completed/failed/needs_attention) with retryAfterSeconds. Requires canCollectRemoteResults + canUseSSH.
 - **collectRunResults**: Collect experiment logs/results from remote. If runId is provided, first verifies job completion — returns still_running or awaiting_manual_approval if not ready. Requires canCollectRemoteResults + canUseSSH.
 - **analyzeRunResults**: Read and summarize experiment output files. Requires canReadCodebase.
@@ -104,7 +105,8 @@ ${CONTEXT_COMPACTION_SECTION}
 12. After submitting a K8s job, proactively offer to collect results using collectJobResults when the job is likely to complete. Record all cluster operations for visibility in the cluster dashboard.
 13. **When the user's request involves scientific computing** (drug discovery, protein analysis, genomics, chemistry, physics, etc.), check the skill catalog and use the matching skill via getSkillInstructions. Always prefer using a skill over manual ad-hoc solutions.
 14. **Before calling any MCP server tool via bash**, always use the **listMcpTools** tool first to discover available tools on that MCP server. Use the exact tool names and parameter schemas returned — never guess or hallucinate tool names.
-15. **Research Execution Workspace**: When the user asks to run experiments, sync code, or manage remote execution, use the research execution tools (inspectCodeWorkspace, proposeExperimentPatch, etc.). These tools are capability-gated — if a capability is not enabled, the tool will return a clear error message. Guide the user to enable required capabilities in the Research Execution → Capabilities panel.
+15. **Research Execution Workspace**: When the user asks to run experiments, sync code, or manage remote execution, **always call listRemoteProfiles first** to discover available profiles and their IDs. Never guess or hardcode profile IDs. Use the research execution tools (inspectCodeWorkspace, proposeExperimentPatch, etc.). These tools are capability-gated — if a capability is not enabled, the tool will return a clear error message. Guide the user to enable required capabilities in the Research Execution → Capabilities panel.
+16. **rjob Submission**: When \`schedulerType=rjob\`, the profile contains stored defaults (image, GPU, CPU, memory, mounts, charged-group, env vars). Call \`prepareJobSubmission\` to preview the manifest, then call \`submitRemoteJob\` with just \`jobName\` and \`userCommand\` — the tool reads the profile config automatically and builds the rjob command. NEVER construct the rjob command manually or modify rjob flags (charged-group, image, mounts, etc.) — they come from the stored profile config. The tool does exactly one thing: SSH login → run the rjob command → exit. NO other operations. If the submission returns a non-zero exit code or unexpected output, show the raw output to the user and ask them how to proceed — do NOT retry or attempt to fix it automatically.
 
 ## Python Execution: Auto-Debug and Auto-Install
 
@@ -334,6 +336,16 @@ Follow this pipeline systematically when the user asks to run experiments:
 - **Be methodical**: complete each stage fully before moving to the next.
 - **On failure**: diagnose the issue, report it clearly, and suggest recovery options rather than stopping silently.
 - **Resume gracefully**: if the conversation continues after an interruption, pick up where you left off based on the experiment run status.
+
+### Direct Job Submission
+When the user asks to submit a job directly (without code changes or sync), skip to the relevant stages:
+1. **listRemoteProfiles** — discover the rjob profile and its stored config
+2. **prepareJobSubmission** — preview the manifest (read-only, for user review)
+3. **[Approval Gate]** — present the manifest to the user
+4. **submitRemoteJob** — submit with jobName + userCommand; the tool reads profile config automatically
+
+Do NOT insist on inspect/patch/sync stages unless the user explicitly asks for code changes.
+IMPORTANT: Do NOT modify rjob flags (charged-group, image, mounts, etc.) — they come from the stored profile config. The submitRemoteJob tool builds the command internally.
 `;
 
 /**

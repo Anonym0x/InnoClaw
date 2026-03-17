@@ -24,7 +24,7 @@ A self-hostable AI research assistant. Turn server-side folders into workspaces,
 - 🎓 **论文讨论模式** — 5 角色多智能体结构化讨论（主持人/文献专家/质疑者/复现者/记录员），6 阶段确定性流程
 - 💡 **研究灵感生成** — 多智能体 AI 头脑风暴，基于论文生成跨学科研究方向与创新点
 - 📑 **多标签预览** — 同时打开多篇论文和文件，标签式切换，一键从文件预览转为论文研读模式
-- 🧪 **研究执行工作区** — 13 阶段自动化实验工作流：代码审查 → 补丁提议 → 远程同步 → 任务提交 → 智能监控 → 结果收集 → 分析推荐。支持 Shell / Slurm / rjob 三种调度后端，5 个 AI Agent 角色协作，权限细粒度管控
+- 🧪 **研究执行工作区** — 13 阶段自动化实验工作流：代码审查 → 补丁提议 → 远程同步 → 任务提交 → 智能监控 → 结果收集 → 分析推荐。支持 Shell / Slurm / rjob 三种调度后端，5 个 AI Agent 角色协作，权限细粒度管控。rjob 后端支持完整容器配置（GPU/CPU/内存/镜像/挂载/charged-group/环境变量），提交时自动从存储的配置构建命令，防止 Agent 篡改参数
 - ⚡ **Agent-Long / Agent-Short 模式** — Agent-Short（默认）适合快速单步任务；Agent-Long 为多步研究流水线优化，maxSteps=100、自动续接上限 50、内置 15 阶段研究执行管道指令
 
 **适用人群：** 研究人员 · 开发者 · 自托管爱好者 · 学生和教育工作者
@@ -524,6 +524,11 @@ Agent 面板支持向 Kubernetes 集群提交 GPU 计算任务。
 
 <!-- whats-new-start -->
 
+#### 2026-03-17
+- **rjob Profile Config & Submission Hardening / rjob 配置与提交加固**: Remote profiles now store full rjob defaults (image, GPU, CPU, memory, mounts, charged-group, private-machine, env vars, host-network, example commands). `submitRemoteJob` builds the rjob command internally from stored config — the agent can no longer modify flags like `--charged-group` or `--image`. SSH transport fixed with `-o StrictHostKeyChecking=no -tt`, init script sourcing, and double-quote wrapping for correct quoting.
+- **Profile Editing / 远程配置编辑**: Edit button (pencil icon) on remote profiles in the Remotes tab. Click to load profile into the form for updating, including all rjob config fields.
+- **Direct Job Submission Shortcut / 直接任务提交捷径**: Agent-Long mode can skip inspect/patch/sync stages for simple job submissions: `listRemoteProfiles → prepareJobSubmission → approval → submitRemoteJob`.
+
 #### 2026-03-16
 - **Paper Discussion & Ideation Robustness / 论文讨论与灵感生成稳定性提升**: Per-role token budgets (2–2.5x increase), automatic retry on empty/short responses, and error visibility in the UI. Fixes agents returning empty or truncated output with reasoning-capable models (SH-Lab, Qwen, etc.)
 - **Full Paper Context / 全文送入讨论智能体**: Discussion and ideation agents now receive up to 30k chars of the full paper text (local files) instead of just the abstract, enabling deeper analysis of methodology, experiments, and results
@@ -564,9 +569,11 @@ Agent 面板支持向 Kubernetes 集群提交 GPU 计算任务。
 - **研究执行工作区 (Research Execution Workspace)** — 端到端自动化实验管理：
   - **13 阶段工作流**：代码审查 → 补丁提议 → 审批 → 应用 → 同步预览 → 同步执行 → 任务准备 → 提交 → 监控 → 审批收集 → 收集结果 → 分析 → 推荐下一步
   - **5 个 AI Agent 角色**：Repo Agent（代码分析）、Patch Agent（补丁生成）、Remote Agent（远程操作）、Result Analyst（结果分析）、Research Planner（策略规划）
-  - **3 种调度后端**：Shell (nohup)、Slurm (sbatch)、rjob（容器化任务，支持 GPU/内存/镜像/挂载配置）
+  - **3 种调度后端**：Shell (nohup)、Slurm (sbatch)、rjob（容器化任务，支持 GPU/内存/镜像/挂载/charged-group/环境变量/host-network 完整配置）
+  - **rjob 安全提交**：`submitRemoteJob` 工具从存储的配置自动构建 rjob 命令，Agent 无法篡改 charged-group、镜像、挂载等关键参数
+  - **配置文件编辑**：远程配置支持编辑，点击铅笔图标修改已有配置（含全部 rjob 参数）
   - **智能任务监控**：SSH 单命令批量检查（调度器状态 + 标志文件 + 心跳 + 日志），自动状态推断与冲突检测
-  - **SSH 快速配置**：粘贴 SSH 命令自动解析主机、用户名、端口、密钥
+  - **SSH 快速配置**：粘贴 SSH 命令自动解析主机、用户名、端口、密钥；已有配置支持编辑
   - **8 项权限管控**：读代码 / 写代码 / 本地终端 / SSH / 远程同步 / 任务提交 / 收集结果 / 自动应用
   - **人工审批门控**：补丁审批、同步执行、任务提交、结果收集四个关键节点需人工确认
 - **Agent-Long / Agent-Short 模式** — Agent 面板输入栏左侧可选：
@@ -637,7 +644,7 @@ Agent 面板输入栏左侧的模式选择器提供四种模式：
 5. 人工审批后收集结果，AI 分析并推荐下一步实验方向
 
 **rjob 容器任务示例：**
-rjob 后端支持指定容器镜像、GPU 数量、内存、挂载路径等参数，适合需要容器化环境的深度学习实验。
+rjob 后端支持指定容器镜像、GPU 数量、内存、挂载路径、charged-group、环境变量等参数，适合需要容器化环境的深度学习实验。配置保存在远程配置文件中，提交时自动构建命令——Agent 无法修改这些参数，确保每次提交都使用正确的集群配置。可在配置中粘贴示例 rjob 命令供 Agent 参考格式。
 
 ---
 

@@ -35,6 +35,22 @@ export const PAPER = {
   MAX_EXTRACT_CONTEXT: 10_000,
 } as const;
 
+/** Tighter truncation limits for long-agent mode (conserve context window). */
+export const TRUNCATE_LONG_AGENT = {
+  STDOUT: 4_000,
+  STDERR: 2_000,
+  STDOUT_LARGE: 8_000,
+  STDOUT_MAX: 12_000,
+  FILE_CONTENT: 20_000,
+  JOB_STATUS: 2_000,
+  DIR_ENTRIES: 100,
+} as const;
+
+/** Pick the right truncation limits based on agent mode. */
+export function getTruncateLimits(isLongAgent?: boolean): { readonly STDOUT: number; readonly STDERR: number; readonly STDOUT_LARGE: number; readonly STDOUT_MAX: number; readonly FILE_CONTENT: number; readonly JOB_STATUS: number; readonly DIR_ENTRIES: number } {
+  return isLongAgent ? TRUNCATE_LONG_AGENT : TRUNCATE;
+}
+
 /** Buffer size constants for exec calls. */
 export const BUFFER = {
   /** 512 KB — grep results */

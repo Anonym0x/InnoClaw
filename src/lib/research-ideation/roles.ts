@@ -18,7 +18,7 @@ Rules every panelist must follow:
 4. Be constructive: point out limitations, then suggest fixes.
 5. Respect the stage you are in — do not anticipate later stages.
 6. Write in the locale requested by the user (en / zh).
-7. In quick mode keep each contribution ≤ 400 words; in full mode ≤ 1000 words.`;
+7. In quick mode be concise and focus on the most critical points; in full mode be comprehensive.`;
 
 // =============================================================
 // ROLE SYSTEM PROMPTS

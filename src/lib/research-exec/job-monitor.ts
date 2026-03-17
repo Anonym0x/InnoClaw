@@ -17,7 +17,7 @@ import type {
 
 function buildSshPrefix(profile: RemoteExecutionProfile): string {
   const keyOpt = profile.sshKeyRef ? `-i ${profile.sshKeyRef} ` : "";
-  return `ssh ${keyOpt}-p ${profile.port} ${profile.username}@${profile.host}`;
+  return `ssh -o StrictHostKeyChecking=no -tt ${keyOpt}-p ${profile.port} ${profile.username}@${profile.host}`;
 }
 
 // =============================================================
@@ -358,7 +358,8 @@ export async function checkJobStatus(
   scriptParts.push(`echo "LOGTAIL:$LOG_TAIL"`);
 
   const script = scriptParts.join("; ");
-  const cmd = `${sshPrefix} 'bash -c ${JSON.stringify(script)}'`;
+  const initAndScript = `. /etc/profile.d/ssh-init.sh 2>/dev/null || true; ${script}`;
+  const cmd = `${sshPrefix} 'bash -c ${JSON.stringify(initAndScript)}'`;
 
   const result = await execInWorkspace(cmd, cwd, {
     timeout: 30_000,

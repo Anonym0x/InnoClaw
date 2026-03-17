@@ -3,15 +3,36 @@
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Server, Trash2 } from "lucide-react";
+import { Server, Trash2, Pencil } from "lucide-react";
 import { useRemoteProfiles } from "@/lib/hooks/use-remote-profiles";
+import type { RemoteExecutionProfile, RJobProfileConfig } from "@/lib/research-exec/types";
 import { toast } from "sonner";
+
+function rjobSummary(jsonStr: string | null | undefined): string | null {
+  if (!jsonStr) return null;
+  try {
+    const cfg = JSON.parse(jsonStr) as RJobProfileConfig;
+    const parts: string[] = [];
+    if (cfg.defaultGpu) parts.push(`${cfg.defaultGpu} GPU`);
+    if (cfg.defaultCpu) parts.push(`${cfg.defaultCpu} CPU`);
+    if (cfg.defaultMemoryMb) parts.push(`${Math.round(cfg.defaultMemoryMb / 1024)}GB`);
+    if (cfg.chargedGroup) parts.push(cfg.chargedGroup);
+    if (cfg.image) {
+      const short = cfg.image.split("/").pop() ?? cfg.image;
+      parts.push(short.length > 30 ? short.slice(0, 27) + "..." : short);
+    }
+    return parts.length > 0 ? parts.join(" | ") : null;
+  } catch {
+    return null;
+  }
+}
 
 interface RemoteProfileListProps {
   workspaceId: string;
+  onEdit?: (profile: RemoteExecutionProfile) => void;
 }
 
-export function RemoteProfileList({ workspaceId }: RemoteProfileListProps) {
+export function RemoteProfileList({ workspaceId, onEdit }: RemoteProfileListProps) {
   const t = useTranslations("researchExec");
   const { profiles, isLoading, mutate } = useRemoteProfiles(workspaceId);
 
@@ -59,7 +80,25 @@ export function RemoteProfileList({ workspaceId }: RemoteProfileListProps) {
             <p className="text-xs text-muted-foreground truncate">
               {profile.username}@{profile.host}:{profile.port} → {profile.remotePath}
             </p>
+            {profile.schedulerType === "rjob" && (() => {
+              const summary = rjobSummary(profile.rjobConfigJson);
+              return summary ? (
+                <p className="text-[10px] text-muted-foreground/70 truncate mt-0.5">
+                  {summary}
+                </p>
+              ) : null;
+            })()}
           </div>
+          {onEdit && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={() => onEdit(profile)}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"

@@ -8,6 +8,7 @@ import type {
 } from "./types";
 import { IDEATION_STAGES, IDEATION_AGENTS } from "./roles";
 import { buildIdeationPrompt } from "./prompts";
+import { continueTruncatedResponse } from "@/lib/ai/continue-truncated";
 
 // =============================================================
 // PER-STAGE TOKEN LIMITS — each role has different output needs
@@ -52,15 +53,30 @@ export async function runIdeationStage(
 
   const tokenLimit = STAGE_TOKEN_LIMITS[stage.id][state.context.mode];
 
+  const originalPrompt = `Begin your analysis of the paper "${state.context.article.title}".${state.context.userSeed ? ` The user's research seed idea: "${state.context.userSeed}"` : ""}`;
+
   const result = await generateText({
     model,
     system: systemPrompt,
-    prompt: `Begin your analysis of the paper "${state.context.article.title}".${state.context.userSeed ? ` The user's research seed idea: "${state.context.userSeed}"` : ""}`,
+    prompt: originalPrompt,
     maxOutputTokens: tokenLimit,
     abortSignal,
   });
 
-  const text = result.text.trim();
+  let text = result.text.trim();
+
+  // If the response was truncated due to token limit, attempt one continuation
+  if (result.finishReason === "length" && !abortSignal?.aborted) {
+    text = await continueTruncatedResponse({
+      model,
+      systemPrompt,
+      originalPrompt,
+      partialResponse: text,
+      continuationTokens: Math.ceil(tokenLimit * 0.4),
+      abortSignal,
+    });
+  }
+
   if (text.length < 20) {
     throw new Error("Model returned empty or trivially short response");
   }
