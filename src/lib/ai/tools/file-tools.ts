@@ -5,11 +5,12 @@ import {
   writeFile as fsWriteFile,
   listDirectory as fsListDirectory,
 } from "@/lib/files/filesystem";
-import { TRUNCATE } from "@/lib/constants";
+import { TRUNCATE, getTruncateLimits } from "@/lib/constants";
 import { copyToResearchHistory } from "./research-history";
 import type { ToolContext } from "./types";
 
 export function createFileTools(ctx: ToolContext) {
+  const T = getTruncateLimits(ctx.isLongAgent);
   return {
     readFile: tool({
       description:
@@ -21,8 +22,8 @@ export function createFileTools(ctx: ToolContext) {
         const resolved = ctx.resolvePath(filePath);
         const content = await fsReadFile(resolved);
         const truncated =
-          content.length > TRUNCATE.FILE_CONTENT
-            ? content.slice(0, TRUNCATE.FILE_CONTENT) + "\n... (truncated)"
+          content.length > T.FILE_CONTENT
+            ? content.slice(0, T.FILE_CONTENT) + "\n... (truncated)"
             : content;
         return { content: truncated, path: resolved };
       },
@@ -66,7 +67,7 @@ export function createFileTools(ctx: ToolContext) {
         const resolved = dirPath ? ctx.resolvePath(dirPath) : ctx.validatedCwd;
         const entries = await fsListDirectory(resolved);
         return {
-          entries: entries.slice(0, TRUNCATE.DIR_ENTRIES).map((e) => ({
+          entries: entries.slice(0, T.DIR_ENTRIES).map((e) => ({
             name: e.name,
             type: e.type,
             size: e.size,

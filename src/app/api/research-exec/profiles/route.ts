@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { workspaceId, name, host, port, username, remotePath, schedulerType, sshKeyRef, pollIntervalSeconds } = body;
+    const { workspaceId, name, host, port, username, remotePath, schedulerType, sshKeyRef, pollIntervalSeconds, rjobConfig } = body;
 
     if (!workspaceId || !name || !host || !username || !remotePath) {
       return NextResponse.json(
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
       schedulerType: schedulerType ?? "shell",
       sshKeyRef: sshKeyRef ?? null,
       pollIntervalSeconds: pollIntervalSeconds ?? 60,
+      rjobConfigJson: rjobConfig ? JSON.stringify(rjobConfig) : null,
       createdAt: now,
       updatedAt: now,
     });
@@ -56,6 +57,44 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to create profile";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { id, workspaceId, name, host, port, username, remotePath, schedulerType, sshKeyRef, pollIntervalSeconds, rjobConfig } = body;
+
+    if (!id || !workspaceId) {
+      return NextResponse.json({ error: "Missing id or workspaceId" }, { status: 400 });
+    }
+
+    const now = new Date().toISOString();
+    const updates: Record<string, unknown> = { updatedAt: now };
+    if (name !== undefined) updates.name = name;
+    if (host !== undefined) updates.host = host;
+    if (port !== undefined) updates.port = port;
+    if (username !== undefined) updates.username = username;
+    if (remotePath !== undefined) updates.remotePath = remotePath;
+    if (schedulerType !== undefined) updates.schedulerType = schedulerType;
+    if (sshKeyRef !== undefined) updates.sshKeyRef = sshKeyRef || null;
+    if (pollIntervalSeconds !== undefined) updates.pollIntervalSeconds = pollIntervalSeconds;
+    if (rjobConfig !== undefined) updates.rjobConfigJson = rjobConfig ? JSON.stringify(rjobConfig) : null;
+
+    await db
+      .update(remoteProfiles)
+      .set(updates)
+      .where(and(eq(remoteProfiles.id, id), eq(remoteProfiles.workspaceId, workspaceId)));
+
+    const [updated] = await db
+      .select()
+      .from(remoteProfiles)
+      .where(eq(remoteProfiles.id, id));
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to update profile";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

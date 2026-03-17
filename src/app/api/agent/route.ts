@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
         // Agent (default): standard agent mode
         systemPrompt = buildAgentSystemPrompt(cwd, skillCatalog, { noTools: !useTools });
       }
-      tools = createAgentTools(cwd, undefined, workspaceId, sessionCreatedAt);
+      tools = createAgentTools(cwd, undefined, workspaceId, sessionCreatedAt, mode === "long-agent");
     }
 
     // Sanitize UI messages: remove tool invocation parts with missing input
@@ -156,7 +156,23 @@ export async function POST(req: NextRequest) {
       }),
     })) as UIMessage[];
 
-    const modelMessages = await convertToModelMessages(sanitizedMessages);
+    // Strip historical auto-continue messages to conserve context window.
+    // Keep the last one (current trigger) but remove all earlier "Continue"/"继续" user messages.
+    const AUTO_CONTINUE_TEXTS = new Set(["Continue", "继续"]);
+    const collapsedMessages = sanitizedMessages.filter((msg, idx) => {
+      if (msg.role !== "user") return true;
+      const text = msg.parts
+        ?.filter((p) => (p as Record<string, unknown>).type === "text")
+        .map((p) => (p as Record<string, string>).text)
+        .join("")
+        .trim();
+      if (!text || !AUTO_CONTINUE_TEXTS.has(text)) return true;
+      // Keep the very last message (the current auto-continue trigger)
+      if (idx === sanitizedMessages.length - 1) return true;
+      return false;
+    });
+
+    const modelMessages = await convertToModelMessages(collapsedMessages);
 
     const DEFAULT_MAX_STEPS = 50;
     const LONG_AGENT_MAX_STEPS = 200;

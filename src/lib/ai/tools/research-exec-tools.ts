@@ -4,6 +4,7 @@ import { execInWorkspace } from "@/lib/utils/shell";
 import { getCapabilities, requireCapability } from "@/lib/research-exec/capabilities";
 import { checkJobStatus } from "@/lib/research-exec/job-monitor";
 import { TRUNCATE, BUFFER } from "@/lib/constants";
+import type { RJobProfileConfig } from "@/lib/research-exec/types";
 import type { ToolContext } from "./types";
 
 /**
@@ -19,7 +20,77 @@ export function createResearchExecTools(ctx: ToolContext) {
     return getCapabilities(ctx.workspaceId);
   }
 
+  /** Build a complete rjob submit command from profile config. */
+  function buildRjobCommand(cfg: RJobProfileConfig, jobName: string, userCommand: string): string {
+    const parts = ["rjob submit", `--name=${jobName}`];
+    if (cfg.defaultMemoryMb) parts.push(`--memory=${cfg.defaultMemoryMb}`);
+    if (cfg.defaultCpu) parts.push(`--cpu=${cfg.defaultCpu}`);
+    if (cfg.defaultGpu) parts.push(`--gpu=${cfg.defaultGpu}`);
+    if (cfg.chargedGroup) parts.push(`--charged-group=${cfg.chargedGroup}`);
+    if (cfg.privateMachine) parts.push(`--private-machine=${cfg.privateMachine}`);
+    for (const m of cfg.mounts) {
+      parts.push(`--mount=${m.source}:${m.target}`);
+    }
+    parts.push(`--image=${cfg.image}`);
+    if (cfg.priority != null) parts.push(`-P ${cfg.priority}`);
+    if (cfg.hostNetwork) parts.push("--host-network=true");
+    if (cfg.env) {
+      for (const [k, v] of Object.entries(cfg.env)) {
+        parts.push(`-e ${k}=${v}`);
+      }
+    }
+    parts.push(`-- /bin/bash -lc '${userCommand.replace(/'/g, "'\\''")}'`);
+    return parts.join(" ");
+  }
+
   return {
+    listRemoteProfiles: tool({
+      description:
+        "List all configured remote execution profiles for the current workspace. Use this to discover available profileIds before calling other research execution tools (previewRemoteSync, executeRemoteSync, submitRemoteJob, etc.).",
+      inputSchema: z.object({}),
+      execute: async () => {
+        if (!ctx.workspaceId) {
+          return { blocked: true as const, error: "No workspace context for research execution." };
+        }
+        const { db } = await import("@/lib/db");
+        const { remoteProfiles } = await import("@/lib/db/schema");
+        const { eq } = await import("drizzle-orm");
+        const profiles = await db
+          .select()
+          .from(remoteProfiles)
+          .where(eq(remoteProfiles.workspaceId, ctx.workspaceId));
+
+        if (profiles.length === 0) {
+          return {
+            profiles: [],
+            message: "No remote profiles configured. Ask the user to create one in the Research Execution → Remote Profiles panel.",
+          };
+        }
+
+        return {
+          profiles: profiles.map((p) => {
+            let rjobConfig: RJobProfileConfig | null = null;
+            if (p.rjobConfigJson) {
+              try {
+                rjobConfig = JSON.parse(p.rjobConfigJson) as RJobProfileConfig;
+              } catch { /* ignore malformed JSON */ }
+            }
+            return {
+              id: p.id,
+              name: p.name,
+              host: p.host,
+              port: p.port,
+              username: p.username,
+              remotePath: p.remotePath,
+              schedulerType: p.schedulerType,
+              sshKeyRef: p.sshKeyRef,
+              ...(rjobConfig ? { rjobConfig } : {}),
+            };
+          }),
+        };
+      },
+    }),
+
     inspectCodeWorkspace: tool({
       description:
         "Inspect the codebase workspace: list directory structure, identify experiment entrypoints, config files, and output directories. Requires canReadCodebase capability.",
@@ -163,8 +234,8 @@ export function createResearchExecTools(ctx: ToolContext) {
           .join(" ");
 
         const sshOpt = profile.sshKeyRef
-          ? `-e "ssh -i ${profile.sshKeyRef} -p ${profile.port}"`
-          : `-e "ssh -p ${profile.port}"`;
+          ? `-e "ssh -o StrictHostKeyChecking=no -i ${profile.sshKeyRef} -p ${profile.port}"`
+          : `-e "ssh -o StrictHostKeyChecking=no -p ${profile.port}"`;
 
         const cmd = `rsync -avnz ${sshOpt} ${excludes} ./ ${profile.username}@${profile.host}:${profile.remotePath}/`;
 
@@ -230,8 +301,8 @@ export function createResearchExecTools(ctx: ToolContext) {
           .join(" ");
 
         const sshOpt = profile.sshKeyRef
-          ? `-e "ssh -i ${profile.sshKeyRef} -p ${profile.port}"`
-          : `-e "ssh -p ${profile.port}"`;
+          ? `-e "ssh -o StrictHostKeyChecking=no -i ${profile.sshKeyRef} -p ${profile.port}"`
+          : `-e "ssh -o StrictHostKeyChecking=no -p ${profile.port}"`;
 
         const cmd = `rsync -avz ${sshOpt} ${excludes} ./ ${profile.username}@${profile.host}:${profile.remotePath}/`;
 
@@ -287,29 +358,50 @@ export function createResearchExecTools(ctx: ToolContext) {
               command: `sbatch --job-name=${name} --wrap='${command.replace(/'/g, "'\\''")}'`,
               profile: { name: profile.name, host: profile.host },
             },
-            instruction: "Review this manifest, then call submitRemoteJob with confirmSubmit=true to submit.",
+            instruction: "Review this manifest, then call submitRemoteJob with the jobName and userCommand to submit.",
           };
         }
 
         if (profile.schedulerType === "rjob") {
+          let cfg: RJobProfileConfig = {
+            mounts: [],
+            image: "pytorch/pytorch:latest",
+            defaultMemoryMb: 16384,
+            defaultCpu: 4,
+            defaultGpu: 1,
+          };
+          if (profile.rjobConfigJson) {
+            try {
+              cfg = { ...cfg, ...JSON.parse(profile.rjobConfigJson) as RJobProfileConfig };
+            } catch { /* use defaults */ }
+          }
+
+          const rjobCmd = buildRjobCommand(cfg, name, command);
+
           return {
             manifest: {
               type: "rjob",
               jobName: name,
               rjobSpec: {
                 jobName: name,
-                memoryMb: 16384,
-                cpu: 4,
-                gpu: 1,
-                mounts: [],
-                image: "pytorch/pytorch:latest",
+                memoryMb: cfg.defaultMemoryMb ?? 16384,
+                cpu: cfg.defaultCpu ?? 4,
+                gpu: cfg.defaultGpu ?? 1,
+                chargedGroup: cfg.chargedGroup,
+                privateMachine: cfg.privateMachine,
+                mounts: cfg.mounts,
+                image: cfg.image,
+                priority: cfg.priority,
+                hostNetwork: cfg.hostNetwork,
+                env: cfg.env,
                 command: command,
                 commandArgs: [],
               },
-              command: `rjob submit --name ${name} --gpu 1 --cpu 4 --memory 16384 --image pytorch/pytorch:latest -- ${command}`,
+              command: rjobCmd,
               profile: { name: profile.name, host: profile.host },
+              ...(cfg.exampleCommands?.length ? { exampleCommands: cfg.exampleCommands } : {}),
             },
-            instruction: "Review this rjob manifest. Adjust image, GPU count, CPU, memory, mounts, and other options as needed, then call submitRemoteJob with confirmSubmit=true.",
+            instruction: "Review this manifest. To submit, call submitRemoteJob with the jobName and userCommand — the tool will automatically use the profile's stored config for all rjob flags. Do NOT modify the rjob flags.",
           };
         }
 
@@ -320,23 +412,24 @@ export function createResearchExecTools(ctx: ToolContext) {
             command: `nohup bash -c '${command.replace(/'/g, "'\\''")}' > ${profile.remotePath}/${name}.log 2>&1 &`,
             profile: { name: profile.name, host: profile.host },
           },
-          instruction: "Review this manifest, then call submitRemoteJob with confirmSubmit=true to submit.",
+          instruction: "Review this manifest, then call submitRemoteJob with the jobName and userCommand to submit.",
         };
       },
     }),
 
     submitRemoteJob: tool({
       description:
-        "Submit a job to the remote execution target via SSH. Requires canSubmitJobs AND canUseSSH. Only call after user has approved the submission manifest.",
+        "Submit a job to the remote target. Does exactly one thing: SSH login → run the command → exit. No other operations. For rjob profiles, builds the command from stored profile config automatically. If exit code is non-zero, show raw output to user and let them decide. Requires canSubmitJobs AND canUseSSH.",
       inputSchema: z.object({
         profileId: z.string().describe("Remote execution profile ID"),
-        command: z.string().describe("The full command to execute on the remote"),
+        jobName: z.string().describe("Job name (used for --name= in rjob, or log file name for shell)"),
+        userCommand: z.string().describe("The actual command to run (e.g. 'python train.py ...'). For rjob, this is wrapped in the container. For shell, this is run via nohup."),
         confirmSubmit: z
           .boolean()
           .optional()
           .describe("Must be true to submit. User must approve the manifest first."),
       }),
-      execute: async ({ profileId, command, confirmSubmit }) => {
+      execute: async ({ profileId, jobName, userCommand, confirmSubmit }) => {
         const caps = await loadCaps();
         if ("blocked" in caps) return caps;
         let block = requireCapability(caps, "canSubmitJobs", "submit remote job");
@@ -364,23 +457,51 @@ export function createResearchExecTools(ctx: ToolContext) {
           return { error: `Remote profile "${profileId}" not found.` };
         }
 
-        const sshCmd = profile.sshKeyRef
-          ? `ssh -i ${profile.sshKeyRef} -p ${profile.port} ${profile.username}@${profile.host}`
-          : `ssh -p ${profile.port} ${profile.username}@${profile.host}`;
+        // Build the command based on scheduler type — agent cannot modify rjob flags
+        let remoteCommand: string;
+        if (profile.schedulerType === "rjob") {
+          let cfg: RJobProfileConfig = {
+            mounts: [],
+            image: "pytorch/pytorch:latest",
+            defaultMemoryMb: 16384,
+            defaultCpu: 4,
+            defaultGpu: 1,
+          };
+          if (profile.rjobConfigJson) {
+            try {
+              cfg = { ...cfg, ...JSON.parse(profile.rjobConfigJson) as RJobProfileConfig };
+            } catch { /* use defaults */ }
+          }
+          remoteCommand = buildRjobCommand(cfg, jobName, userCommand);
+        } else if (profile.schedulerType === "slurm") {
+          remoteCommand = `sbatch --job-name=${jobName} --wrap='${userCommand.replace(/'/g, "'\\''")}'`;
+        } else {
+          remoteCommand = `nohup bash -c '${userCommand.replace(/'/g, "'\\''")}' > ${profile.remotePath}/${jobName}.log 2>&1 &`;
+        }
 
-        const fullCmd = `${sshCmd} '${command.replace(/'/g, "'\\''")}'`;
+        const sshBase = profile.sshKeyRef
+          ? `ssh -o StrictHostKeyChecking=no -i ${profile.sshKeyRef} -p ${profile.port} ${profile.username}@${profile.host}`
+          : `ssh -o StrictHostKeyChecking=no -p ${profile.port} ${profile.username}@${profile.host}`;
+
+        // SSH login → run exactly the rjob command → exit. Nothing else.
+        const fullCmd = `${sshBase} ${JSON.stringify(remoteCommand)}`;
 
         const result = await execInWorkspace(fullCmd, ctx.validatedCwd, {
-          timeout: 60_000,
+          timeout: 120_000,
           maxBuffer: BUFFER.DEFAULT,
         });
 
+        // Return raw output — let the user decide if anything looks wrong
         return {
           success: result.exitCode === 0,
           profile: { name: profile.name, host: profile.host },
+          commandExecuted: remoteCommand,
           stdout: result.stdout.slice(0, TRUNCATE.STDOUT),
           stderr: result.stderr.slice(0, TRUNCATE.STDERR),
           exitCode: result.exitCode,
+          ...(result.exitCode !== 0 ? {
+            note: "Command exited with non-zero status. Please review the output and decide how to proceed.",
+          } : {}),
         };
       },
     }),
@@ -556,8 +677,8 @@ export function createResearchExecTools(ctx: ToolContext) {
         await execInWorkspace(`mkdir -p '${dest}'`, ctx.validatedCwd, { timeout: 5_000 });
 
         const sshOpt = profile.sshKeyRef
-          ? `-e "ssh -i ${profile.sshKeyRef} -p ${profile.port}"`
-          : `-e "ssh -p ${profile.port}"`;
+          ? `-e "ssh -o StrictHostKeyChecking=no -i ${profile.sshKeyRef} -p ${profile.port}"`
+          : `-e "ssh -o StrictHostKeyChecking=no -p ${profile.port}"`;
 
         const results: Array<{ path: string; success: boolean; error?: string }> = [];
         for (const rp of remotePaths.slice(0, 10)) {

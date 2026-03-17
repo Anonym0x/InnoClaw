@@ -567,17 +567,51 @@ export function AgentPanel({
   const autoContinueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const maxAutoContinues = mode === "long-agent" ? 100 : 20; // long-agent supports extended interactions
 
+  // --- Auto-retry on stream errors ---
+  const errorRetryCountRef = useRef(0);
+  const MAX_ERROR_RETRIES = 3;
+
   useEffect(() => {
-    const wasStreaming = prevStatusRef.current === "streaming" || prevStatusRef.current === "submitted";
+    const wasActive = prevStatusRef.current === "streaming" || prevStatusRef.current === "submitted";
     const isNowReady = status === "ready";
+    const isNowError = status === "error";
     prevStatusRef.current = status;
 
-    // Only trigger on transition from streaming to ready
-    if (!wasStreaming || !isNowReady) {
-      // Reset counter when user sends a new message
-      if (status === "submitted") {
-        autoContinueCountRef.current = 0;
+    // Reset counters when user sends a new message
+    if (status === "submitted") {
+      autoContinueCountRef.current = 0;
+      return;
+    }
+
+    // Reset error retries on successful completion
+    if (wasActive && isNowReady) {
+      errorRetryCountRef.current = 0;
+    }
+
+    // --- Auto-retry on error (exponential backoff: 2s, 4s, 8s) ---
+    if (wasActive && isNowError && errorRetryCountRef.current < MAX_ERROR_RETRIES) {
+      // Don't retry context-length errors — retrying with the same context won't help
+      const errMsg = chatError?.message?.toLowerCase() ?? "";
+      if (errMsg.includes("context") || errMsg.includes("token") || errMsg.includes("too long")
+        || errMsg.includes("max_tokens") || errMsg.includes("context_length") || errMsg.includes("rate_limit")) {
+        return;
       }
+      errorRetryCountRef.current++;
+      const delay = Math.pow(2, errorRetryCountRef.current) * 1000;
+      autoContinueTimerRef.current = setTimeout(() => {
+        if (summarizingRef.current) return;
+        sendMessage({ text: t("autoContinue") });
+      }, delay);
+      return () => {
+        if (autoContinueTimerRef.current) {
+          clearTimeout(autoContinueTimerRef.current);
+          autoContinueTimerRef.current = null;
+        }
+      };
+    }
+
+    // Only trigger auto-continue on transition from streaming to ready
+    if (!wasActive || !isNowReady) {
       return;
     }
 
@@ -600,14 +634,12 @@ export function AgentPanel({
     // indicating the task is incomplete. Pure-text endings are treated as
     // completed — the model is done talking.
     if (!endsWithToolCall) {
-      // Reset the auto-continue counter when we see a pure-text response,
-      // so we don't keep auto-continuing based on stale state.
-      autoContinueCountRef.current = 0;
       return;
     }
 
     autoContinueCountRef.current++;
     autoContinueTimerRef.current = setTimeout(() => {
+      if (summarizingRef.current) return;
       sendMessage({ text: t("autoContinue") });
     }, 500);
     return () => {
@@ -616,7 +648,7 @@ export function AgentPanel({
         autoContinueTimerRef.current = null;
       }
     };
-  }, [status, messages, sendMessage, t, maxAutoContinues]);
+  }, [status, messages, sendMessage, t, maxAutoContinues, chatError]);
 
   // Resolved provider/model (avoids repeating fallback chain)
   const resolvedProvider = selectedProvider ?? settings?.llmProvider ?? DEFAULT_PROVIDER;
@@ -648,6 +680,11 @@ export function AgentPanel({
     trigger: "overflow" | "clear"
   ) => {
     if (summarizingRef.current) return;
+    // Cancel any pending auto-continue to prevent race with summarization
+    if (autoContinueTimerRef.current) {
+      clearTimeout(autoContinueTimerRef.current);
+      autoContinueTimerRef.current = null;
+    }
     summarizingRef.current = true;
     failedAtCountRef.current = -1;
     setIsSummarizing(true);
@@ -713,7 +750,7 @@ export function AgentPanel({
 
   // Detect context overflow after messages stabilize (not during streaming)
   useEffect(() => {
-    if (settings?.maxMode === false) return;
+    if (settings?.maxMode === false && mode !== "long-agent") return;
     if (restoreGenRef.current > 0 || isSummarizing) return;
     if (showMessageSelect || showMemoryPreview) return; // Don't trigger while dialog is open
     if (status !== "ready" && status !== "error") return;
@@ -745,6 +782,12 @@ export function AgentPanel({
 
     const toSummarize = messages.slice(0, keepFromIndex);
     const toKeep = messages.slice(keepFromIndex);
+
+    // In long-agent mode, auto-summarize without user interaction to keep the pipeline flowing
+    if (mode === "long-agent") {
+      summarizeAndEvict(toSummarize, toKeep, "overflow");
+      return;
+    }
 
     // Show message selection dialog instead of auto-summarizing
     overflowKeepRef.current = toKeep;
@@ -1058,14 +1101,14 @@ export function AgentPanel({
             </div>
           ) : (
             messages.map((message) => {
-              // Filter out auto-continue messages (user messages with only "继续")
+              // Filter out auto-continue messages (user messages with only "Continue" / "继续")
               if (message.role === "user") {
                 const text = message.parts
                   ?.filter((p): p is { type: "text"; text: string } => p.type === "text")
                   .map((p) => p.text)
                   .join("")
                   .trim();
-                if (text === "继续") return null;
+                if (text === "Continue" || text === "继续") return null;
               }
               return <AgentMessage key={message.id} message={message} />;
             })

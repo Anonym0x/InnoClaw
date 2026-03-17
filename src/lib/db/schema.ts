@@ -273,6 +273,7 @@ export const remoteProfiles = sqliteTable("remote_profiles", {
     .default("shell"),
   sshKeyRef: text("ssh_key_ref"), // path to SSH key file, never raw key
   pollIntervalSeconds: integer("poll_interval_seconds").notNull().default(60),
+  rjobConfigJson: text("rjob_config_json"), // JSON: RJobProfileConfig | null
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),

@@ -2,11 +2,12 @@ import { tool } from "ai";
 import { z } from "zod";
 import path from "path";
 import { execInWorkspace } from "@/lib/utils/shell";
-import { TRUNCATE, BUFFER } from "@/lib/constants";
+import { TRUNCATE, BUFFER, getTruncateLimits } from "@/lib/constants";
 import { copyToResearchHistory } from "./research-history";
 import type { ToolContext } from "./types";
 
 export function createShellTools(ctx: ToolContext) {
+  const T = getTruncateLimits(ctx.isLongAgent);
   return {
     bash: tool({
       description:
@@ -110,7 +111,7 @@ export function createShellTools(ctx: ToolContext) {
           maxBuffer: BUFFER.SMALL,
         });
         return {
-          matches: result.stdout.slice(0, TRUNCATE.STDOUT_LARGE) || result.stderr.slice(0, TRUNCATE.STDERR),
+          matches: result.stdout.slice(0, T.STDOUT_LARGE) || result.stderr.slice(0, T.STDERR),
           exitCode: result.exitCode,
         };
       },

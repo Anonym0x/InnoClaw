@@ -11,8 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Terminal } from "lucide-react";
+import { Terminal, Plus, X } from "lucide-react";
+import type { RJobMount, RJobProfileConfig } from "@/lib/research-exec/types";
 
 /**
  * Parse an SSH command string into profile fields.
@@ -126,22 +130,48 @@ function parseSshCommand(raw: string): {
 
 interface RemoteProfileFormProps {
   workspaceId: string;
+  editProfile?: import("@/lib/research-exec/types").RemoteExecutionProfile | null;
   onCreated: () => void;
+  onCancelEdit?: () => void;
 }
 
-export function RemoteProfileForm({ workspaceId, onCreated }: RemoteProfileFormProps) {
+export function RemoteProfileForm({ workspaceId, editProfile, onCreated, onCancelEdit }: RemoteProfileFormProps) {
   const t = useTranslations("researchExec");
-  const [name, setName] = useState("");
-  const [host, setHost] = useState("");
-  const [port, setPort] = useState("22");
-  const [username, setUsername] = useState("");
-  const [remotePath, setRemotePath] = useState("");
-  const [schedulerType, setSchedulerType] = useState("shell");
-  const [sshKeyRef, setSshKeyRef] = useState("");
-  const [pollInterval, setPollInterval] = useState("60");
+
+  // Parse rjob config from edit profile if present
+  const editRjobConfig: RJobProfileConfig | null = (() => {
+    if (!editProfile?.rjobConfigJson) return null;
+    try { return JSON.parse(editProfile.rjobConfigJson) as RJobProfileConfig; } catch { return null; }
+  })();
+
+  const [name, setName] = useState(editProfile?.name ?? "");
+  const [host, setHost] = useState(editProfile?.host ?? "");
+  const [port, setPort] = useState(String(editProfile?.port ?? 22));
+  const [username, setUsername] = useState(editProfile?.username ?? "");
+  const [remotePath, setRemotePath] = useState(editProfile?.remotePath ?? "");
+  const [schedulerType, setSchedulerType] = useState<string>(editProfile?.schedulerType ?? "shell");
+  const [sshKeyRef, setSshKeyRef] = useState(editProfile?.sshKeyRef ?? "");
+  const [pollInterval, setPollInterval] = useState(String(editProfile?.pollIntervalSeconds ?? 60));
   const [saving, setSaving] = useState(false);
   const [sshInput, setSshInput] = useState("");
-  const [showQuickPaste, setShowQuickPaste] = useState(true);
+  const [showQuickPaste, setShowQuickPaste] = useState(!editProfile);
+
+  // rjob-specific state
+  const [rjobChargedGroup, setRjobChargedGroup] = useState(editRjobConfig?.chargedGroup ?? "");
+  const [rjobPrivateMachine, setRjobPrivateMachine] = useState(editRjobConfig?.privateMachine ?? "");
+  const [rjobImage, setRjobImage] = useState(editRjobConfig?.image ?? "");
+  const [rjobMemory, setRjobMemory] = useState(String(editRjobConfig?.defaultMemoryMb ?? 400000));
+  const [rjobCpu, setRjobCpu] = useState(String(editRjobConfig?.defaultCpu ?? 32));
+  const [rjobGpu, setRjobGpu] = useState(String(editRjobConfig?.defaultGpu ?? 2));
+  const [rjobPriority, setRjobPriority] = useState(String(editRjobConfig?.priority ?? 1));
+  const [rjobHostNetwork, setRjobHostNetwork] = useState(editRjobConfig?.hostNetwork ?? false);
+  const [rjobMounts, setRjobMounts] = useState<RJobMount[]>(editRjobConfig?.mounts ?? []);
+  const [rjobEnv, setRjobEnv] = useState<{ key: string; value: string }[]>(
+    editRjobConfig?.env ? Object.entries(editRjobConfig.env).map(([key, value]) => ({ key, value })) : [],
+  );
+  const [rjobExampleCommands, setRjobExampleCommands] = useState(
+    editRjobConfig?.exampleCommands?.join("\n") ?? "",
+  );
 
   const handleParseSsh = () => {
     const parsed = parseSshCommand(sshInput);
@@ -170,33 +200,79 @@ export function RemoteProfileForm({ workspaceId, onCreated }: RemoteProfileFormP
     }
     setSaving(true);
     try {
+      let rjobConfig: RJobProfileConfig | null = null;
+      if (schedulerType === "rjob" && rjobImage) {
+        rjobConfig = {
+          chargedGroup: rjobChargedGroup || undefined,
+          privateMachine: rjobPrivateMachine || undefined,
+          mounts: rjobMounts.filter((m) => m.source && m.target),
+          image: rjobImage,
+          defaultMemoryMb: parseInt(rjobMemory, 10) || undefined,
+          defaultCpu: parseInt(rjobCpu, 10) || undefined,
+          defaultGpu: parseInt(rjobGpu, 10) || undefined,
+          priority: parseInt(rjobPriority, 10) || undefined,
+          hostNetwork: rjobHostNetwork || undefined,
+          env: rjobEnv.reduce(
+            (acc, { key, value }) => {
+              if (key) acc[key] = value;
+              return acc;
+            },
+            {} as Record<string, string>,
+          ),
+          exampleCommands: rjobExampleCommands
+            .split("\n")
+            .map((l) => l.trim())
+            .filter(Boolean),
+        };
+        if (Object.keys(rjobConfig.env!).length === 0) delete rjobConfig.env;
+        if (!rjobConfig.exampleCommands?.length) delete rjobConfig.exampleCommands;
+      }
+
+      const payload = {
+        workspaceId,
+        name,
+        host,
+        port: parseInt(port, 10) || 22,
+        username,
+        remotePath,
+        schedulerType,
+        sshKeyRef: sshKeyRef || null,
+        pollIntervalSeconds: parseInt(pollInterval, 10) || 60,
+        rjobConfig,
+      };
+
+      const isEditing = !!editProfile;
       const res = await fetch("/api/research-exec/profiles", {
-        method: "POST",
+        method: isEditing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          workspaceId,
-          name,
-          host,
-          port: parseInt(port, 10) || 22,
-          username,
-          remotePath,
-          schedulerType,
-          sshKeyRef: sshKeyRef || null,
-          pollIntervalSeconds: parseInt(pollInterval, 10) || 60,
-        }),
+        body: JSON.stringify(isEditing ? { id: editProfile.id, ...payload } : payload),
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to create profile");
+        throw new Error(data.error || (isEditing ? "Failed to update profile" : "Failed to create profile"));
       }
-      toast.success(t("profileCreated"));
-      setName("");
-      setHost("");
-      setPort("22");
-      setUsername("");
-      setRemotePath("");
-      setSshKeyRef("");
+      toast.success(isEditing ? t("profileUpdated") : t("profileCreated"));
+      if (!isEditing) {
+        setName("");
+        setHost("");
+        setPort("22");
+        setUsername("");
+        setRemotePath("");
+        setSshKeyRef("");
+        setRjobChargedGroup("");
+        setRjobPrivateMachine("");
+        setRjobImage("");
+        setRjobMemory("400000");
+        setRjobCpu("32");
+        setRjobGpu("2");
+        setRjobPriority("1");
+        setRjobHostNetwork(false);
+        setRjobMounts([]);
+        setRjobEnv([]);
+        setRjobExampleCommands("");
+      }
       onCreated();
+      if (isEditing && onCancelEdit) onCancelEdit();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create profile");
     } finally {
@@ -206,7 +282,7 @@ export function RemoteProfileForm({ workspaceId, onCreated }: RemoteProfileFormP
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 p-4 border rounded-lg">
-      <h4 className="text-sm font-semibold">{t("addProfile")}</h4>
+      <h4 className="text-sm font-semibold">{editProfile ? t("editProfile") : t("addProfile")}</h4>
 
       {/* Quick paste SSH command */}
       {showQuickPaste && (
@@ -302,9 +378,193 @@ export function RemoteProfileForm({ workspaceId, onCreated }: RemoteProfileFormP
           type="number"
         />
       </div>
-      <Button type="submit" size="sm" disabled={saving}>
-        {saving ? t("saving") : t("addProfile")}
-      </Button>
+
+      {/* rjob-specific configuration */}
+      {schedulerType === "rjob" && (
+        <div className="space-y-3 rounded-md border p-3 bg-muted/20">
+          <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            rjob Configuration
+          </h5>
+          <div className="grid grid-cols-2 gap-2">
+            <Input
+              placeholder="Image (e.g. registry.h.pjlab.org.cn/...)"
+              value={rjobImage}
+              onChange={(e) => setRjobImage(e.target.value)}
+              className="col-span-2 font-mono text-xs"
+            />
+            <Input
+              placeholder="Charged Group (e.g. ai4sdata_gpu)"
+              value={rjobChargedGroup}
+              onChange={(e) => setRjobChargedGroup(e.target.value)}
+            />
+            <Input
+              placeholder="Private Machine (e.g. group)"
+              value={rjobPrivateMachine}
+              onChange={(e) => setRjobPrivateMachine(e.target.value)}
+            />
+            <Input
+              placeholder="Memory (MB)"
+              value={rjobMemory}
+              onChange={(e) => setRjobMemory(e.target.value)}
+              type="number"
+            />
+            <Input
+              placeholder="CPU"
+              value={rjobCpu}
+              onChange={(e) => setRjobCpu(e.target.value)}
+              type="number"
+            />
+            <Input
+              placeholder="GPU"
+              value={rjobGpu}
+              onChange={(e) => setRjobGpu(e.target.value)}
+              type="number"
+            />
+            <Input
+              placeholder="Priority (-P)"
+              value={rjobPriority}
+              onChange={(e) => setRjobPriority(e.target.value)}
+              type="number"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="rjob-host-network"
+              checked={rjobHostNetwork}
+              onCheckedChange={(v) => setRjobHostNetwork(v === true)}
+            />
+            <Label htmlFor="rjob-host-network" className="text-xs">
+              Host Network (--host-network)
+            </Label>
+          </div>
+
+          {/* Mounts */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium">Mounts</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => setRjobMounts([...rjobMounts, { source: "", target: "" }])}
+              >
+                <Plus className="mr-1 h-3 w-3" /> Add
+              </Button>
+            </div>
+            {rjobMounts.map((mount, i) => (
+              <div key={i} className="flex gap-1.5 items-center">
+                <Input
+                  placeholder="Source (e.g. gpfs://gpfs1/...)"
+                  value={mount.source}
+                  onChange={(e) => {
+                    const next = [...rjobMounts];
+                    next[i] = { ...next[i], source: e.target.value };
+                    setRjobMounts(next);
+                  }}
+                  className="flex-1 font-mono text-xs"
+                />
+                <span className="text-xs text-muted-foreground">:</span>
+                <Input
+                  placeholder="Target (e.g. /mnt/...)"
+                  value={mount.target}
+                  onChange={(e) => {
+                    const next = [...rjobMounts];
+                    next[i] = { ...next[i], target: e.target.value };
+                    setRjobMounts(next);
+                  }}
+                  className="flex-1 font-mono text-xs"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-destructive"
+                  onClick={() => setRjobMounts(rjobMounts.filter((_, j) => j !== i))}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          {/* Environment Variables */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium">Environment Variables</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => setRjobEnv([...rjobEnv, { key: "", value: "" }])}
+              >
+                <Plus className="mr-1 h-3 w-3" /> Add
+              </Button>
+            </div>
+            {rjobEnv.map((env, i) => (
+              <div key={i} className="flex gap-1.5 items-center">
+                <Input
+                  placeholder="KEY"
+                  value={env.key}
+                  onChange={(e) => {
+                    const next = [...rjobEnv];
+                    next[i] = { ...next[i], key: e.target.value };
+                    setRjobEnv(next);
+                  }}
+                  className="w-1/3 font-mono text-xs"
+                />
+                <span className="text-xs text-muted-foreground">=</span>
+                <Input
+                  placeholder="value"
+                  value={env.value}
+                  onChange={(e) => {
+                    const next = [...rjobEnv];
+                    next[i] = { ...next[i], value: e.target.value };
+                    setRjobEnv(next);
+                  }}
+                  className="flex-1 font-mono text-xs"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-destructive"
+                  onClick={() => setRjobEnv(rjobEnv.filter((_, j) => j !== i))}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          {/* Example Commands */}
+          <div className="space-y-1.5">
+            <span className="text-xs font-medium">Example Commands</span>
+            <Textarea
+              placeholder={"Paste example rjob submit commands (one per line) for the agent to reference.\ne.g. rjob submit --name my-job --memory=400000 --cpu=32 --gpu=2 ..."}
+              value={rjobExampleCommands}
+              onChange={(e) => setRjobExampleCommands(e.target.value)}
+              className="font-mono text-xs min-h-[80px]"
+              rows={4}
+            />
+            <p className="text-[10px] text-muted-foreground">
+              The agent will see these examples and follow the same format when submitting jobs.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <Button type="submit" size="sm" disabled={saving}>
+          {saving ? t("saving") : editProfile ? t("saveProfile") : t("addProfile")}
+        </Button>
+        {editProfile && onCancelEdit && (
+          <Button type="button" variant="outline" size="sm" onClick={onCancelEdit}>
+            {t("cancel")}
+          </Button>
+        )}
+      </div>
     </form>
   );
 }

@@ -84,7 +84,7 @@ function formatRetrievedEvidence(evidence?: string): string {
 
 function brevityInstruction(mode: "quick" | "full"): string {
   if (mode === "quick") {
-    return "\n\nIMPORTANT: Keep your response concise (≤ 400 words). Focus on the most critical points only. Be brief but substantive.";
+    return "\n\nIMPORTANT: Keep your response concise — focus on the most critical points only. Be brief but substantive.";
   }
   return "";
 }

@@ -12,4 +12,6 @@ export interface ToolContext {
   workspaceId?: string | null;
   /** Absolute path to the research history directory for the current session (if available). */
   researchHistoryDir?: string;
+  /** Whether the agent is in long-agent mode (tighter truncation to conserve context). */
+  isLongAgent?: boolean;
 }

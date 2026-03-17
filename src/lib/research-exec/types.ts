@@ -48,6 +48,8 @@ export interface RemoteExecutionProfile {
   /** Path to the SSH private key file on the server machine (e.g. ~/.ssh/id_rsa).
    *  Never store the raw key content — only a file path reference. */
   sshKeyRef: string | null;
+  pollIntervalSeconds: number;
+  rjobConfigJson?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -77,6 +79,22 @@ export type ExperimentRunStatus =
 export interface RJobMount {
   source: string;
   target: string;
+}
+
+/** Per-profile rjob defaults stored as JSON in the remote_profiles table. */
+export interface RJobProfileConfig {
+  chargedGroup?: string;
+  privateMachine?: string;
+  mounts: RJobMount[];
+  image: string;
+  defaultMemoryMb?: number;
+  defaultCpu?: number;
+  defaultGpu?: number;
+  priority?: number;
+  hostNetwork?: boolean;
+  env?: Record<string, string>;
+  /** User-provided example rjob commands for the agent to reference. */
+  exampleCommands?: string[];
 }
 
 /** Structured representation of an `rjob submit` request. */

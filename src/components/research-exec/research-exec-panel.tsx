@@ -11,6 +11,7 @@ import { RemoteProfileList } from "./remote-profile-list";
 import { ExperimentWorkflow } from "./experiment-workflow";
 import { RunHistory } from "./run-history";
 import { useRemoteProfiles } from "@/lib/hooks/use-remote-profiles";
+import type { RemoteExecutionProfile } from "@/lib/research-exec/types";
 
 interface ResearchExecPanelProps {
   workspaceId: string;
@@ -19,6 +20,7 @@ interface ResearchExecPanelProps {
 export function ResearchExecPanel({ workspaceId }: ResearchExecPanelProps) {
   const t = useTranslations("researchExec");
   const [activeTab, setActiveTab] = useState("workflow");
+  const [editingProfile, setEditingProfile] = useState<RemoteExecutionProfile | null>(null);
   const { mutate: refreshProfiles } = useRemoteProfiles(workspaceId);
 
   return (
@@ -55,11 +57,17 @@ export function ResearchExecPanel({ workspaceId }: ResearchExecPanelProps) {
 
         {activeTab === "profiles" && (
           <ScrollArea className="h-full">
-            <RemoteProfileList workspaceId={workspaceId} />
+            <RemoteProfileList
+              workspaceId={workspaceId}
+              onEdit={(profile) => setEditingProfile(profile)}
+            />
             <div className="px-4 pb-4">
               <RemoteProfileForm
+                key={editingProfile?.id ?? "new"}
                 workspaceId={workspaceId}
+                editProfile={editingProfile}
                 onCreated={() => refreshProfiles()}
+                onCancelEdit={() => setEditingProfile(null)}
               />
             </div>
           </ScrollArea>
