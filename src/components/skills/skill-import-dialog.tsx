@@ -55,7 +55,15 @@ function getImportableSlug(relativePath: string): string | null {
 function parseFileContent(
   content: string,
   fallbackSlug: string
-): { name: string; slug: string; systemPrompt: string; description: string | null; steps: null; allowedTools: null; parameters: null } | null {
+): {
+  name: string;
+  slug: string;
+  systemPrompt: string;
+  description: string | null;
+  steps: unknown | null;
+  allowedTools: unknown | null;
+  parameters: unknown | null;
+} | null {
   const parsed = markdownToSkillData(content);
   if (parsed?.name && parsed.systemPrompt) {
     return {
