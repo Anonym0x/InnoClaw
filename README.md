@@ -528,6 +528,11 @@ Agent 面板支持向 Kubernetes 集群提交 GPU 计算任务。
 
 <!-- whats-new-start -->
 
+#### 2026-03-18
+- **Multimodal Vision for Paper Discussion & Ideation / 论文讨论与灵感生成支持多模态视觉**: When the AI provider supports vision (OpenAI, Anthropic, Gemini, etc.), PDF page images are now sent alongside extracted text to discussion and ideation agents, enabling analysis of figures, tables, and diagrams directly from the paper. A new PDF image extractor (`pdf-image-extractor.ts`) converts pages to base64 images. Prompt builders return structured `{ system, userContent }` with interleaved text + image parts for multimodal models, falling back to text-only for non-vision providers.
+- **Paper Pages Gallery UI / 论文页面图库**: Both the Discussion and Ideation panels now display a collapsible thumbnail gallery of extracted paper pages. Click any thumbnail to view the full-size page in a dialog. Pages are streamed as metadata before discussion turns begin.
+- **Provider Vision Capability Detection / 供应商视觉能力检测**: Added `supportsVision` flag to all provider configs and a `providerSupportsVision()` helper, allowing routes to dynamically choose multimodal vs text-only content based on the active provider.
+
 #### 2026-03-17
 - **rjob Profile Config & Submission Hardening / rjob 配置与提交加固**: Remote profiles now store full rjob defaults (image, GPU, CPU, memory, mounts, charged-group, private-machine, env vars, host-network, example commands). `submitRemoteJob` builds the rjob command internally from stored config — the agent can no longer modify flags like `--charged-group` or `--image`. SSH transport fixed with `-o StrictHostKeyChecking=no -tt`, init script sourcing, and double-quote wrapping for correct quoting.
 - **Profile Editing / 远程配置编辑**: Edit button (pencil icon) on remote profiles in the Remotes tab. Click to load profile into the form for updating, including all rjob config fields.
