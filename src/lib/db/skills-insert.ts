@@ -106,6 +106,8 @@ export function parseSkillMd(
 
   const name = getValue("name") || fallbackSlug;
   const description = getValue("description") || null;
+  const slugFromFrontmatter = getValue("slug");
+  const slug = slugFromFrontmatter || fallbackSlug || slugify(name);
 
   // Extract allowed-tools from command frontmatter (e.g., "Bash(git add:*), Bash(git commit:*)")
   const allowedToolsRaw = getValue("allowed-tools");
@@ -126,7 +128,7 @@ export function parseSkillMd(
 
   return {
     name,
-    slug: slugify(name),
+    slug,
     description,
     systemPrompt: body,
     steps: null,
