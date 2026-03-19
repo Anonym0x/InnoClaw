@@ -54,7 +54,11 @@ function readCache(): PaperStudyCacheData | null {
     }
     return envelope.data;
   } catch {
-    localStorage.removeItem(STORAGE_KEY);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Ignore storage removal errors
+    }
     return null;
   }
 }
