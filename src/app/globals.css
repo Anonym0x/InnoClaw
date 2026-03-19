@@ -990,6 +990,11 @@
   letter-spacing: 0.05em;
 }
 
+/* CodeMirror editor — fill parent height */
+.cm-editor {
+  height: 100%;
+}
+
 /* ---- Report prose (article-style) ---- */
 .report-prose {
   line-height: 1.8;
