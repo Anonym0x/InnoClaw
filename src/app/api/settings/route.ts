@@ -7,7 +7,7 @@ import path from "path";
 import { getWorkspaceRoots } from "@/lib/files/filesystem";
 import { updateEnvLocal } from "@/lib/env-file";
 import { PROVIDERS } from "@/lib/ai/models";
-import { getK8sConfig } from "@/lib/cluster/config";
+import { getK8sConfig, SETTINGS_TO_ENV, invalidateK8sConfigCache } from "@/lib/cluster/config";
 
 /**
  * Derive the base-URL env var name for a provider (e.g. "openai" → "OPENAI_BASE_URL").
@@ -130,23 +130,8 @@ export async function PATCH(request: NextRequest) {
       envUpdates.GITHUB_TOKEN = body.github_token;
     }
 
-    // K8s cluster settings → .env.local mapping
-    const K8S_SETTINGS_MAP: Record<string, string> = {
-      kubeconfig_path: "KUBECONFIG_PATH",
-      k8s_submitter: "K8S_SUBMITTER",
-      k8s_image_pull_secret: "K8S_IMAGE_PULL_SECRET",
-      k8s_mount_user: "K8S_MOUNT_USER",
-      kubeconfig_context_a3: "KUBECONFIG_CONTEXT_A3",
-      k8s_pvc_ai4s: "K8S_PVC_AI4S",
-      k8s_pvc_user: "K8S_PVC_USER",
-      k8s_pvc_ai4s_a2: "K8S_PVC_AI4S_A2",
-      kubeconfig_context_muxi: "KUBECONFIG_CONTEXT_MUXI",
-      k8s_muxi_default_image: "K8S_MUXI_DEFAULT_IMAGE",
-      k8s_muxi_pvc_ai4s: "K8S_MUXI_PVC_AI4S",
-      k8s_muxi_pvc_user: "K8S_MUXI_PVC_USER",
-      k8s_muxi_pvc_ai4s_a2: "K8S_MUXI_PVC_AI4S_A2",
-    };
-    for (const [settingsKey, envKey] of Object.entries(K8S_SETTINGS_MAP)) {
+    // K8s cluster settings → .env.local mapping (uses shared SETTINGS_TO_ENV)
+    for (const [settingsKey, envKey] of Object.entries(SETTINGS_TO_ENV)) {
       if (typeof body[settingsKey] === "string") {
         envUpdates[envKey] = body[settingsKey];
       }
@@ -158,6 +143,8 @@ export async function PATCH(request: NextRequest) {
       for (const [k, v] of Object.entries(envUpdates)) {
         process.env[k] = v;
       }
+      // Bust K8s config cache so next read picks up the new values
+      invalidateK8sConfigCache();
     }
 
     return NextResponse.json({ success: true });

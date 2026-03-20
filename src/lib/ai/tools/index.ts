@@ -53,7 +53,6 @@ export async function createAgentTools(
     validatedCwd,
     resolvePath,
     kubeconfigPath,
-    clusterContextMap: k8sConfig.clusterContextMap,
     k8sConfig,
     baseExecEnv,
     workspaceId,

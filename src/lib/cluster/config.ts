@@ -30,7 +30,7 @@ export interface K8sConfig {
  * Map from app_settings DB keys to the env-var names they correspond to.
  * This is the single source of truth for the key mapping.
  */
-const SETTINGS_TO_ENV: Record<string, string> = {
+export const SETTINGS_TO_ENV: Record<string, string> = {
   kubeconfig_path: "KUBECONFIG_PATH",
   k8s_submitter: "K8S_SUBMITTER",
   k8s_image_pull_secret: "K8S_IMAGE_PULL_SECRET",
@@ -66,11 +66,20 @@ function resolve(
   return fallback;
 }
 
+/** Simple TTL cache for K8s config to avoid repeated DB queries within the same request cycle. */
+let cachedConfig: K8sConfig | null = null;
+let cacheExpiry = 0;
+const CACHE_TTL_MS = 10_000; // 10 seconds
+
 /**
  * Load K8s configuration from the database (primary) with process.env fallback.
+ * Results are cached for 10s to avoid repeated DB hits on the same request.
  * This is the single entry point all cluster-related code should use.
  */
 export async function getK8sConfig(): Promise<K8sConfig> {
+  const now = Date.now();
+  if (cachedConfig && now < cacheExpiry) return cachedConfig;
+
   // Batch-read all K8s-related keys from DB in one query
   const rows = await db
     .select()
@@ -84,7 +93,7 @@ export async function getK8sConfig(): Promise<K8sConfig> {
 
   const submitter = resolve(dbMap, "k8s_submitter");
 
-  return {
+  const config: K8sConfig = {
     kubeconfigPath: resolve(dbMap, "kubeconfig_path"),
     submitter,
     imagePullSecret: resolve(dbMap, "k8s_image_pull_secret") || submitter,
@@ -107,4 +116,14 @@ export async function getK8sConfig(): Promise<K8sConfig> {
       pvcAi4sA2: resolve(dbMap, "k8s_muxi_pvc_ai4s_a2"),
     },
   };
+
+  cachedConfig = config;
+  cacheExpiry = now + CACHE_TTL_MS;
+  return config;
+}
+
+/** Invalidate the cached config (call after settings are updated). */
+export function invalidateK8sConfigCache(): void {
+  cachedConfig = null;
+  cacheExpiry = 0;
 }

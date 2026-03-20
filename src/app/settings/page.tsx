@@ -31,16 +31,7 @@ import { useStyleTheme } from "@/lib/hooks/use-style-theme";
 import { useFontSize } from "@/lib/hooks/use-font-size";
 import { useFontFamily, FONT_OPTIONS } from "@/lib/hooks/use-font-family";
 import { Minus, Plus, RotateCcw } from "lucide-react";
-
-interface K8sClusterConfig {
-  kubeconfigPath: string;
-  submitter: string;
-  imagePullSecret: string;
-  mountUser: string;
-  clusterContextMap: Record<string, string>;
-  a3: { defaultImage: string; pvcAi4s: string; pvcUser: string; pvcAi4sA2: string };
-  muxi: { defaultImage: string; pvcAi4s: string; pvcUser: string; pvcAi4sA2: string };
-}
+import type { K8sConfig } from "@/lib/cluster/config";
 
 interface Settings {
   llmProvider: string;
@@ -55,7 +46,7 @@ interface Settings {
   providerBaseUrls: Record<string, string>;
   feishuBotEnabled: boolean;
   wechatBotEnabled: boolean;
-  k8sConfig: K8sClusterConfig;
+  k8sConfig: K8sConfig;
 }
 
 export default function SettingsPage() {
@@ -80,7 +71,7 @@ export default function SettingsPage() {
   const { styleTheme, setStyleTheme } = useStyleTheme();
   const { fontSize, increase, decrease, reset, min, max } = useFontSize();
   const { fontFamily, setFontFamily: setFont, reset: resetFont } = useFontFamily();
-  const [k8sConfig, setK8sConfig] = useState<K8sClusterConfig>({
+  const [k8sConfig, setK8sConfig] = useState<K8sConfig>({
     kubeconfigPath: "", submitter: "", imagePullSecret: "", mountUser: "",
     clusterContextMap: { a3: "", muxi: "" },
     a3: { defaultImage: "", pvcAi4s: "", pvcUser: "", pvcAi4sA2: "" },

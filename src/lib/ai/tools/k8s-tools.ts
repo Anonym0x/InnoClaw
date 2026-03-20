@@ -54,7 +54,7 @@ const FORBIDDEN_FLAGS = [
 
 /** Resolve a cluster short-name to its kubeconfig --context value. */
 function resolveContext(ctx: ToolContext, cluster: ClusterName): string {
-  return ctx.clusterContextMap[cluster] || ctx.clusterContextMap.a3 || "vc-a3-ai4s";
+  return ctx.k8sConfig.clusterContextMap[cluster] || ctx.k8sConfig.clusterContextMap.a3 || "vc-a3-ai4s";
 }
 
 /** Return the default container image for the given cluster. */
