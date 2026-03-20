@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { FolderOpen, FolderPlus, GitBranch, Sparkles, Cpu, Zap, Brain, Code2, GraduationCap, Server, ChevronDown } from "lucide-react";
+import { FolderOpen, FolderPlus, GitBranch, Sparkles, Cpu, Zap, Brain, Code2, GraduationCap, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { WorkspaceList } from "@/components/workspaces/workspace-list";
