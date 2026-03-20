@@ -838,9 +838,7 @@ export default function SettingsPage() {
             </Card>
 
             {/* Scheduled Tasks */}
-            <div className="md:col-span-2">
-              <ScheduledTasksCard />
-            </div>
+            <ScheduledTasksCard className="md:col-span-2" />
           </div>
         </main>
       </ScrollArea>

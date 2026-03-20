@@ -14,6 +14,9 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "${SCRIPT_DIR}/lib/utils.sh"
+
 # ── Configurable ──────────────────────────────────────────────────────────────
 BASE_URL="${BASE_URL:-http://localhost:3000}"
 CONCURRENCY="${CONCURRENCY:-5}"
@@ -33,15 +36,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 API="${BASE_URL}/api"
-
-# ── Colors ────────────────────────────────────────────────────────────────────
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
-
-log()  { echo -e "${CYAN}[$(date +%H:%M:%S)]${NC} $*"; }
-ok()   { echo -e "${GREEN}[$(date +%H:%M:%S)] ✓${NC} $*"; }
-warn() { echo -e "${YELLOW}[$(date +%H:%M:%S)] ⚠${NC} $*"; }
-err()  { echo -e "${RED}[$(date +%H:%M:%S)] ✗${NC} $*"; }
 
 # ── Test Cases ────────────────────────────────────────────────────────────────
 # Each entry: "title|||content"
@@ -150,60 +144,35 @@ run_session() {
       sess_data=$(curl -sf "${API}/deep-research/sessions/${session_id}" 2>/dev/null || echo '{}')
       status=$(echo "$sess_data" | jq -r '.status // "unknown"')
 
-      # Terminal states
-      if [[ "$status" == "completed" || "$status" == "failed" || "$status" == "stopped" ]]; then
+      # Terminal states (matches SessionStatus in types.ts)
+      if [[ "$status" == "completed" || "$status" == "failed" || "$status" == "stopped_by_user" || "$status" == "cancelled" ]]; then
         final_status="$status"
         echo "[${elapsed}s] Terminal status: ${status}"
         break
       fi
 
-      # Auto-confirm checkpoints
-      if [[ "$status" == "awaiting_user_confirmation" ]]; then
-        echo "[${elapsed}s] Awaiting confirmation — auto-confirming..."
-
-        # Find the node that needs confirmation
+      # Only fetch nodes when the session actually needs user interaction
+      if [[ "$status" == "awaiting_user_confirmation" || "$status" == "awaiting_approval" ]]; then
         local nodes
         nodes=$(curl -sf "${API}/deep-research/sessions/${session_id}/nodes" 2>/dev/null || echo '[]')
-        local confirm_node_id
-        confirm_node_id=$(echo "$nodes" | jq -r '
-          [.[] | select(.status == "awaiting_user_confirmation" or .status == "checkpoint")] |
-          last | .id // empty')
 
-        if [[ -z "$confirm_node_id" ]]; then
-          # Fallback: try to find any pending checkpoint node
-          confirm_node_id=$(echo "$nodes" | jq -r '[.[] | select(.nodeType == "checkpoint")] | last | .id // empty')
+        # Auto-confirm checkpoints
+        if [[ "$status" == "awaiting_user_confirmation" ]]; then
+          echo "[${elapsed}s] Awaiting confirmation — auto-confirming..."
+          if ! api_auto_action "$API" "$session_id" "$nodes" \
+              '[.[] | select(.status == "awaiting_user_confirmation" or .status == "checkpoint" or .nodeType == "checkpoint")] | last | .id // empty' \
+              "confirm" '{"outcome":"confirmed"}'; then
+            echo "  No checkpoint node found, restarting run..."
+            curl -sf -X POST "${API}/deep-research/sessions/${session_id}/run" >/dev/null 2>&1 || true
+          fi
         fi
 
-        if [[ -n "$confirm_node_id" ]]; then
-          local confirm_resp
-          confirm_resp=$(curl -sf -X POST "${API}/deep-research/sessions/${session_id}/confirm" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n --arg nid "$confirm_node_id" \
-              '{nodeId: $nid, outcome: "confirmed"}')" 2>/dev/null || echo '{"error":"confirm failed"}')
-          echo "  Confirmed node ${confirm_node_id}: ${confirm_resp}"
-        else
-          # If we can't find the node, try restarting the run
-          echo "  No checkpoint node found, restarting run..."
-          curl -sf -X POST "${API}/deep-research/sessions/${session_id}/run" >/dev/null 2>&1 || true
-        fi
-      fi
-
-      # Auto-approve execution steps
-      if [[ "$status" == "awaiting_approval" ]]; then
-        echo "[${elapsed}s] Awaiting approval — auto-approving..."
-        local nodes
-        nodes=$(curl -sf "${API}/deep-research/sessions/${session_id}/nodes" 2>/dev/null || echo '[]')
-        local approve_node_id
-        approve_node_id=$(echo "$nodes" | jq -r '
-          [.[] | select(.status == "awaiting_approval")] | first | .id // empty')
-
-        if [[ -n "$approve_node_id" ]]; then
-          local approve_resp
-          approve_resp=$(curl -sf -X POST "${API}/deep-research/sessions/${session_id}/approve" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n --arg nid "$approve_node_id" \
-              '{nodeId: $nid, approved: true}')" 2>/dev/null || echo '{"error":"approve failed"}')
-          echo "  Approved node ${approve_node_id}: ${approve_resp}"
+        # Auto-approve execution steps
+        if [[ "$status" == "awaiting_approval" ]]; then
+          echo "[${elapsed}s] Awaiting approval — auto-approving..."
+          api_auto_action "$API" "$session_id" "$nodes" \
+            '[.[] | select(.status == "awaiting_approval")] | first | .id // empty' \
+            "approve" '{"approved":true}' || true
         fi
       fi
 
@@ -248,44 +217,41 @@ run_session() {
 log "Starting ${NUM_CASES} research sessions (max ${CONCURRENCY} concurrent)..."
 echo ""
 
+# Reap finished children and compact the active_pids array.
+reap_children() {
+  local new_pids=()
+  for pid in "${active_pids[@]}"; do
+    if kill -0 "$pid" 2>/dev/null; then
+      new_pids+=("$pid")
+    else
+      # Reap immediately to prevent PID reuse confusion
+      wait "$pid" 2>/dev/null || true
+    fi
+  done
+  active_pids=("${new_pids[@]}")
+}
+
 active_pids=()
-active_indices=()
 
 for i in $(seq 0 $((NUM_CASES - 1))); do
   # Wait if we've hit the concurrency limit
-  while [[ ${#active_pids[@]} -ge $CONCURRENCY ]]; do
-    # Wait for any one child to finish
-    new_pids=()
-    new_indices=()
-    for j in "${!active_pids[@]}"; do
-      if kill -0 "${active_pids[$j]}" 2>/dev/null; then
-        new_pids+=("${active_pids[$j]}")
-        new_indices+=("${active_indices[$j]}")
-      else
-        wait "${active_pids[$j]}" 2>/dev/null || true
-      fi
-    done
-    active_pids=("${new_pids[@]}")
-    active_indices=("${new_indices[@]}")
-    if [[ ${#active_pids[@]} -ge $CONCURRENCY ]]; then
-      sleep 2
-    fi
+  while true; do
+    reap_children
+    [[ ${#active_pids[@]} -lt $CONCURRENCY ]] && break
+    sleep 1
   done
 
   local_title="${TEST_CASES[$i]%%|||*}"
   log "Launching [#${i}] ${local_title}"
   run_session "$i" &
   active_pids+=($!)
-  active_indices+=($i)
 
   # Stagger launches slightly to avoid thundering herd
   sleep 2
 done
 
 # Wait for all remaining
-for pid in "${active_pids[@]}"; do
-  wait "$pid" 2>/dev/null || true
-done
+wait
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 echo ""
