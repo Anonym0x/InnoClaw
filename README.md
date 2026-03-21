@@ -252,8 +252,6 @@ Go from code inspection to job submission and result analysis inside a guided ex
 
 ## ⭐ Star History
 
-## Star History
-
 <a href="https://www.star-history.com/?repos=SpectrAI-Initiative%2FInnoClaw&type=date&legend=top-left">
  <picture>
    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=SpectrAI-Initiative/InnoClaw&type=date&theme=dark&legend=top-left" />
