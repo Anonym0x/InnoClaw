@@ -36,6 +36,8 @@ export async function searchHuggingFace(
 ): Promise<Article[]> {
   const { keywords, maxResults = 10, dateFrom, dateTo } = params;
 
+  if (keywords.length === 0) return [];
+
   const apiUrl = getHfApiUrl();
   let lastError: Error | undefined;
 
